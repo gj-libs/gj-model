@@ -2,9 +2,9 @@
 #include <stdio.h>
 
 int main() {
-    const char *filename = "assets/binary.stl";
+    const char *filename = "assets/ascii.stl";
     int count;
-    float *data = stl_open(filename, &count);
+    stl_open(filename, &count);
     printf("count: %d\n", count);
     return 0;
 }
