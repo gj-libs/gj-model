@@ -11,7 +11,9 @@
 extern "C" {
 #endif
 
-// Defs
+float *gj_model_load(const char *filename, int *count);
+
+void   gj_model_free(float *data);
 
 #ifdef __cplusplus
 }

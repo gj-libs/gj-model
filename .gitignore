@@ -1,0 +1,5 @@
+build/
+*.a
+*.o
+*.json
+test_model

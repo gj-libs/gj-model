@@ -24,7 +24,7 @@ OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 all: $(NAME)
 
 test: $(NAME)
-	$(CC) $(CFLAGS) $(TEST_SRC) -L. -lgj_image $(LDFLAGS) -o $(TEST_BIN)
+	$(CC) $(CFLAGS) $(TEST_SRC) -L. -lgj_model $(LDFLAGS) -o $(TEST_BIN)
 
 # Build static library
 $(NAME): $(OBJS)
