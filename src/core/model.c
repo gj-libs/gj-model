@@ -2,6 +2,7 @@
 #include <string.h>
 #include "gj_model/gj_model.h"
 #include "formats/stl.h"
+#include "formats/obj.h"
 
 float *gj_model_load(const char *filename, int *count) {
     char *ext = strrchr(filename, '.');
@@ -12,6 +13,8 @@ float *gj_model_load(const char *filename, int *count) {
 
     if (strcasecmp(ext, ".stl") == 0) {
         return stl_open(filename, count);
+    } else if (strcasecmp(ext, ".obj") == 0) {
+        return obj_open(filename, count);
     } else {
         // gj_set_error("Unsupported file format \"%s\"\n", ext);
         return NULL;
