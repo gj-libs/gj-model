@@ -117,7 +117,6 @@ void parse_line(const char *line, struct objData *objData) {
 
         if (!readValidLine) {
             printf("Invalid face line: %s\n", line);
-            return;
         }
         for (int i = 0; i < 3; i++) {
             objData->faces[objData->faceCount + i].v  = v[i];
@@ -128,23 +127,33 @@ void parse_line(const char *line, struct objData *objData) {
     }
 }
 
+void count(FILE *fptr, int *vCount, int *vtCount, int *vnCount, int *fCount) {
+    char line[256];
+    while (fgets(line, sizeof(line), fptr)) {
+        if (strncmp(line, "v ", 2) == 0) (*vCount)++;
+        else if (strncmp(line, "vn ", 3) == 0) (*vnCount)++;
+        else if (strncmp(line, "vt ", 3) == 0) (*vtCount)++;
+        else if (strncmp(line, "f ", 2) == 0) (*fCount) += 3; // triangulated
+    }
+    rewind(fptr);
+}
+
 struct Mesh obj_open(const char *filename) {
     FILE *fptr;
 
     if (!(fptr = fopen(filename, "rb"))) {
-        printf("Failed to stl_open file %s\n", filename);
+        printf("Failed to open file %s\n", filename);
         struct Mesh mesh = {0};
         return mesh;
     }
-#define MAX_VERTS 36
-#define MAX_FACES 36
 
     struct objData objData = {0};
-    objData.positions = malloc(MAX_VERTS * 3 * sizeof(float));
-    objData.normals   = malloc(MAX_VERTS * 3 * sizeof(float));
-    objData.texcoords = malloc(MAX_VERTS * 3 * sizeof(float));
-
-    objData.faces     = malloc(MAX_FACES * 3 * sizeof(struct faceVertex));
+    int vCount = 0, vtCount = 0, vnCount = 0, fCount = 0;
+    count(fptr, &vCount, &vtCount, &vnCount, &fCount);
+    objData.positions = malloc(vCount * 3 * sizeof(float));
+    objData.normals   = malloc(vnCount * 3 * sizeof(float));
+    objData.texcoords = malloc(vtCount * 3 * sizeof(float));
+    objData.faces     = malloc(fCount * sizeof(struct faceVertex));
 
     char line[256];
     while (fgets(line, sizeof(line), fptr)) {

@@ -10,7 +10,7 @@ void stl_test() {
 }
 
 void obj_test() {
-    const char *filename = "assets/cube/cube.obj";
+    const char *filename = "../../game-1/assets/nar.obj";
     struct Mesh mesh = obj_open(filename);
     printf("count: %d\n", mesh.vertexCount);
 }
