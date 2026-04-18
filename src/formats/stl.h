@@ -1,6 +1,6 @@
-#ifndef OBJ_H
-#define OBJ_H
+#ifndef STL_H
+#define STL_H
 
-float *obj_open(const char *filename, int *count);
+struct Mesh stl_open(const char *filename);
 
-#endif  // OBJ_H
+#endif  // STL_H

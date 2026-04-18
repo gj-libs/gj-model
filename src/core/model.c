@@ -4,24 +4,24 @@
 #include "formats/stl.h"
 #include "formats/obj.h"
 
-float *gj_model_load(const char *filename, int *count) {
+struct Mesh gj_model_load(const char *filename) {
     char *ext = strrchr(filename, '.');
+    struct Mesh nullMesh = {0};
     if (ext == NULL) {
         // gj_set_error("No file extension found in \"%s\"\n", filename);
-        return NULL;
+        return nullMesh;
     }
 
     if (strcasecmp(ext, ".stl") == 0) {
-        return stl_open(filename, count);
+        return stl_open(filename);
     } else if (strcasecmp(ext, ".obj") == 0) {
-        return obj_open(filename, count);
+        return obj_open(filename);
     } else {
         // gj_set_error("Unsupported file format \"%s\"\n", ext);
-        return NULL;
+        return nullMesh;
     }
-    return NULL;
 }
 
-void gj_model_free(float *data) {
-    free(data);
+void gj_model_free(struct Mesh *mesh) {
+    free(mesh->vertices);
 }

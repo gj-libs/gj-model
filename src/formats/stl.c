@@ -1,3 +1,4 @@
+#include "gj_model/gj_model.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,30 +18,38 @@ struct __attribute__((packed)) triangle {
     uint16_t attr;
 };
 
-float *stl_parse_binary(FILE *fptr, int *count) {
+struct Mesh stl_parse_binary(FILE *fptr) {
     uint32_t triCount;
+    struct Mesh nullMesh = {0};
     if (fread(&triCount, sizeof(uint32_t), 1, fptr) != 1) {
         printf("Failed to read triangle count\n");
-        return NULL;
+        return nullMesh;
     }
 
-    // triCount * 3 vertices * 6 floats per vertex (x,y,z,nx,ny,nz) * sizeof(float)
+    // triCount * 3 vertices * 8 floats per vertex (x,y,z,nx,ny,nz,u,v) * sizeof(float)
     //
-    size_t dataSize = triCount * 3 * 6 * sizeof(float);
+    size_t dataSize = triCount * 3 * 8 * sizeof(float);
     float *data = malloc(dataSize);
     if (!data) {
         printf("Failed to allocate memory ofr stl data\n");
-        return NULL;
+        return nullMesh;
     }
+
+    struct Mesh mesh = {
+        .vertices     = data,
+        .vertexCount  = triCount * 3, // 3 = vertix per triangle
+        .hasNormals   = 1,
+        .hasTexcoords = 0
+    };
 
     for (size_t i = 0; i < triCount; i++) {
         struct triangle tri;
         if (fread(&tri, sizeof(struct triangle), 1, fptr) != 1) {
             printf("Failed to parse stl triangle\n");
             free(data);
-            return NULL;
+            return nullMesh;
         }
-        size_t base = i * 18; // 3 * 6
+        size_t base = i * 24; // 3 * 8
         // v1
         data[base + 0] = tri.v1[0];
         data[base + 1] = tri.v1[1];
@@ -48,25 +57,30 @@ float *stl_parse_binary(FILE *fptr, int *count) {
         data[base + 3] = tri.normal[0];
         data[base + 4] = tri.normal[1];
         data[base + 5] = tri.normal[2];
+        data[base + 6] = 0; // u
+        data[base + 7] = 0; // v
 
         // v2
-        data[base + 6] = tri.v2[0];
-        data[base + 7] = tri.v2[1];
-        data[base + 8] = tri.v2[2];
-        data[base + 9] = tri.normal[0];
-        data[base + 10] = tri.normal[1];
-        data[base + 11] = tri.normal[2];
+        data[base + 8] = tri.v2[0];
+        data[base + 9] = tri.v2[1];
+        data[base + 10] = tri.v2[2];
+        data[base + 11] = tri.normal[0];
+        data[base + 12] = tri.normal[1];
+        data[base + 13] = tri.normal[2];
+        data[base + 14] = 0; // u
+        data[base + 15] = 0; // v
 
         // v3
-        data[base + 12] = tri.v3[0];
-        data[base + 13] = tri.v3[1];
-        data[base + 14] = tri.v3[2];
-        data[base + 15] = tri.normal[0];
-        data[base + 16] = tri.normal[1];
-        data[base + 17] = tri.normal[2];
+        data[base + 16] = tri.v3[0];
+        data[base + 17] = tri.v3[1];
+        data[base + 18] = tri.v3[2];
+        data[base + 19] = tri.normal[0];
+        data[base + 20] = tri.normal[1];
+        data[base + 21] = tri.normal[2];
+        data[base + 22] = 0; // u
+        data[base + 23] = 0; // v
     }
-    *count = triCount * 3; // 3 = vertix per triangle
-    return data;
+    return mesh;
 }
 
 int count_facets(FILE *fptr) {
@@ -81,16 +95,23 @@ int count_facets(FILE *fptr) {
     return count;
 }
 
-float *stl_parse_ascii(FILE *fptr, int *count) {
+struct Mesh stl_parse_ascii(FILE *fptr) {
     int triCount = count_facets(fptr);
-    *count = triCount * 3;
 
-    size_t dataSize = triCount * 3 * 6 * sizeof(float);
+    size_t dataSize = triCount * 3 * 8 * sizeof(float);
     float *data = malloc(dataSize);
     if (!data) {
         printf("Failed to allocate memory ofr stl data\n");
-        return NULL;
+        struct Mesh nullMesh = {0};
+        return nullMesh;
     }
+
+    struct Mesh mesh = {
+        .vertices     = data,
+        .vertexCount  = triCount * 3, // 3 = vertix per triangle
+        .hasNormals   = 1,
+        .hasTexcoords = 0
+    };
 
     char line[256];
     float x, y, z;
@@ -124,7 +145,7 @@ float *stl_parse_ascii(FILE *fptr, int *count) {
             }
             vCount += 1;
         } else if (strstr(line, "endloop")) {
-            size_t base = currentTriCount * 18; // 3 * 6
+            size_t base = currentTriCount * 24; // 3 * 8
             // v1
             data[base + 0] = tri.v1[0];
             data[base + 1] = tri.v1[1];
@@ -132,28 +153,34 @@ float *stl_parse_ascii(FILE *fptr, int *count) {
             data[base + 3] = tri.normal[0];
             data[base + 4] = tri.normal[1];
             data[base + 5] = tri.normal[2];
+            data[base + 6] = 0; // u
+            data[base + 7] = 0; // v
 
             // v2
-            data[base + 6] = tri.v2[0];
-            data[base + 7] = tri.v2[1];
-            data[base + 8] = tri.v2[2];
-            data[base + 9] = tri.normal[0];
-            data[base + 10] = tri.normal[1];
-            data[base + 11] = tri.normal[2];
+            data[base + 8] = tri.v2[0];
+            data[base + 9] = tri.v2[1];
+            data[base + 10] = tri.v2[2];
+            data[base + 11] = tri.normal[0];
+            data[base + 12] = tri.normal[1];
+            data[base + 13] = tri.normal[2];
+            data[base + 14] = 0; // u
+            data[base + 15] = 0; // v
 
             // v3
-            data[base + 12] = tri.v3[0];
-            data[base + 13] = tri.v3[1];
-            data[base + 14] = tri.v3[2];
-            data[base + 15] = tri.normal[0];
-            data[base + 16] = tri.normal[1];
-            data[base + 17] = tri.normal[2];
+            data[base + 16] = tri.v3[0];
+            data[base + 17] = tri.v3[1];
+            data[base + 18] = tri.v3[2];
+            data[base + 19] = tri.normal[0];
+            data[base + 20] = tri.normal[1];
+            data[base + 21] = tri.normal[2];
+            data[base + 22] = 0; // u
+            data[base + 23] = 0; // v
 
             currentTriCount++;
             vCount = 0;
         }
     }
-    return data;
+    return mesh;
 }
 
 int stl_parse_header(FILE *fptr) {
@@ -178,23 +205,24 @@ int stl_parse_header(FILE *fptr) {
     return -1;
 }
 
-float *stl_open(const char *filename, int *count) {
+struct Mesh stl_open(const char *filename) {
     FILE *fptr;
 
+    struct Mesh nullMesh = {0};
     if (!(fptr = fopen(filename, "rb"))) {
         printf("Failed to stl_open file %s\n", filename);
         // gj_set_error("Failed to stl_open file %s\n", filename);
-        return NULL;
+        return nullMesh;
     }
 
     int res = stl_parse_header(fptr);
     if (res == -1) {
         fclose(fptr);
-        return NULL;
+        return nullMesh;
     } else if (res == 0) { // ASCII
-        return stl_parse_ascii(fptr, count);
+        return stl_parse_ascii(fptr);
     } else if (res == 1) { // binary
-        return stl_parse_binary(fptr, count);
+        return stl_parse_binary(fptr);
     }
-    return NULL;
+    return nullMesh;
 }

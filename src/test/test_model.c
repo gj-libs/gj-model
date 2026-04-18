@@ -1,19 +1,18 @@
+#include <stdio.h>
+#include "gj_model/gj_model.h"
 #include "formats/stl.h"
 #include "formats/obj.h"
-#include <stdio.h>
 
 void stl_test() {
     const char *filename = "assets/ascii.stl";
-    int count;
-    stl_open(filename, &count);
-    printf("count: %d\n", count);
+    struct Mesh mesh = stl_open(filename);
+    printf("count: %d\n", mesh.vertexCount);
 }
 
 void obj_test() {
     const char *filename = "assets/cube/cube.obj";
-    int count;
-    obj_open(filename, &count);
-    printf("count: %d\n", count);
+    struct Mesh mesh = obj_open(filename);
+    printf("count: %d\n", mesh.vertexCount);
 }
 
 int main() {
