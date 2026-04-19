@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "formats/mtl.h"
 #include "gj_model/gj_model.h"
 
 struct faceVertex {
@@ -14,28 +15,35 @@ struct objData {
     float *normals;   // vn (xyz)
     float *texcoords; // vt (uvw)
 
-    int positionCount;
-    int normalCount;
-    int texcoordsCount;
+    int nPositions;
+    int nNormals;
+    int nTexCoords;
 
     struct faceVertex *faces; // f (v/vt/vn)*3
     int faceCount; // number of vertices (not triangles)
+
+    struct mtlData *materials;
+    int nMaterials;
 };
 
 void obj_parse_line(const char *line, struct objData *objData) {
     float x = 0, y = 0, z = 0, w = 1.0f;
     int read;
-    if (strncmp(line, "v ", 2) == 0) {
+    if (strncmp(line, "mtllib ", 7) == 0) {
+        char *mtllib = NULL;
+        sscanf(line, "newmtl %255s", mtllib);
+        objData->materials = mtl_open(mtllib, &objData->nMaterials);
+    } else if (strncmp(line, "v ", 2) == 0) {
         // add rgb
         w = 1.0f;
         read = sscanf(line, "v %f %f %f %f", &x, &y, &z, &w);
         if (read < 3) {
             printf("Invalid v line\n");
         }
-        objData->positions[objData->positionCount*3+0] = x/w;
-        objData->positions[objData->positionCount*3+1] = y/w;
-        objData->positions[objData->positionCount*3+2] = z/w;
-        objData->positionCount++;
+        objData->positions[objData->nPositions*3+0] = x/w;
+        objData->positions[objData->nPositions*3+1] = y/w;
+        objData->positions[objData->nPositions*3+2] = z/w;
+        objData->nPositions++;
     } else if (strncmp(line, "vt ", 3) == 0) {
         y = 0.0f;
         z = 0.0f;
@@ -43,19 +51,19 @@ void obj_parse_line(const char *line, struct objData *objData) {
         if (read < 2) {
             printf("Invalid vt line\n");
         }
-        objData->texcoords[objData->texcoordsCount*3+0] = x;
-        objData->texcoords[objData->texcoordsCount*3+1] = y;
-        objData->texcoords[objData->texcoordsCount*3+2] = z;
-        objData->texcoordsCount++;
+        objData->texcoords[objData->nTexCoords*3+0] = x;
+        objData->texcoords[objData->nTexCoords*3+1] = y;
+        objData->texcoords[objData->nTexCoords*3+2] = z;
+        objData->nTexCoords++;
     } else if (strncmp(line, "vn ", 3) == 0) {
         read = sscanf(line, "vn %f %f %f", &x, &y, &z);
         if (read != 3) {
             printf("Invalid vn line\n");
         }
-        objData->normals[objData->normalCount*3+0] = x;
-        objData->normals[objData->normalCount*3+1] = y;
-        objData->normals[objData->normalCount*3+2] = z;
-        objData->normalCount++;
+        objData->normals[objData->nNormals*3+0] = x;
+        objData->normals[objData->nNormals*3+1] = y;
+        objData->normals[objData->nNormals*3+2] = z;
+        objData->nNormals++;
     } else if (strncmp(line, "vp ", 3) == 0) {
         read = sscanf(line, "vp %f %f %f", &x, &y, &z);
     } else if (strncmp(line, "f ", 2) == 0) {
@@ -160,14 +168,14 @@ struct Mesh obj_open(const char *filename) {
         obj_parse_line(line, &objData);
     }
 
-    int hasNormals = objData.normalCount > 0;
-    int hasTexcoords = objData.texcoordsCount > 0;
+    int hasNormals = objData.nNormals > 0;
+    int hasTexcoords = objData.nTexCoords > 0;
     int stride = 8; // floats per vertex
     float *data = malloc(sizeof(float) * objData.faceCount * stride);
 
     struct Mesh mesh = {
         .vertices     = data,
-        .vertexCount  = objData.faceCount,
+        .nVertices    = objData.faceCount,
         .hasNormals   = hasNormals,
         .hasTexcoords = hasTexcoords
     };

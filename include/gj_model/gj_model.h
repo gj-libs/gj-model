@@ -13,7 +13,7 @@ extern "C" {
 
 struct Mesh {
     float *vertices;
-    int vertexCount;
+    int nVertices;
 
     int hasNormals;
     int hasTexcoords;

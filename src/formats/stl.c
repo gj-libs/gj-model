@@ -37,7 +37,7 @@ struct Mesh stl_parse_binary(FILE *fptr) {
 
     struct Mesh mesh = {
         .vertices     = data,
-        .vertexCount  = triCount * 3, // 3 = vertix per triangle
+        .nVertices    = triCount * 3, // 3 = vertix per triangle
         .hasNormals   = 1,
         .hasTexcoords = 0
     };
@@ -108,7 +108,7 @@ struct Mesh stl_parse_ascii(FILE *fptr) {
 
     struct Mesh mesh = {
         .vertices     = data,
-        .vertexCount  = triCount * 3, // 3 = vertix per triangle
+        .nVertices    = triCount * 3, // 3 = vertix per triangle
         .hasNormals   = 1,
         .hasTexcoords = 0
     };
