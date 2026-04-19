@@ -2,6 +2,7 @@
 #include "gj_model/gj_model.h"
 #include "formats/stl.h"
 #include "formats/obj.h"
+#include "formats/mtl.h"
 
 void stl_test() {
     const char *filename = "assets/ascii.stl";
@@ -10,9 +11,13 @@ void stl_test() {
 }
 
 void obj_test() {
-    const char *filename = "../../game-1/assets/nar.obj";
-    struct Mesh mesh = obj_open(filename);
+    const char *objFName = "assets/objTest/2nrtbod1out.obj";
+    struct Mesh mesh = obj_open(objFName);
     printf("count: %d\n", mesh.vertexCount);
+
+    printf("opening mtl\n");
+    const char *mtlFName = "assets/objTest/2nrtbod1out.mtl";
+    mtl_open(mtlFName);
 }
 
 int main() {

@@ -22,7 +22,7 @@ struct objData {
     int faceCount; // number of vertices (not triangles)
 };
 
-void parse_line(const char *line, struct objData *objData) {
+void obj_parse_line(const char *line, struct objData *objData) {
     float x = 0, y = 0, z = 0, w = 1.0f;
     int read;
     if (strncmp(line, "v ", 2) == 0) {
@@ -157,7 +157,7 @@ struct Mesh obj_open(const char *filename) {
 
     char line[256];
     while (fgets(line, sizeof(line), fptr)) {
-        parse_line(line, &objData);
+        obj_parse_line(line, &objData);
     }
 
     int hasNormals = objData.normalCount > 0;
