@@ -1,6 +1,8 @@
 #ifndef OBJ_H
 #define OBJ_H
 
-struct Mesh obj_open(const char *filename);
+#include "gj_model/gj_model.h"
+
+int obj_open(const char *filename, struct gjModel *model);
 
 #endif  // OBJ_H

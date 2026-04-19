@@ -1,6 +1,8 @@
 #ifndef STL_H
 #define STL_H
 
-struct Mesh stl_open(const char *filename);
+#include "gj_model/gj_model.h"
+
+int stl_open(const char *filename, struct gjModel *model);
 
 #endif  // STL_H

@@ -18,69 +18,77 @@ struct __attribute__((packed)) triangle {
     uint16_t attr;
 };
 
-struct Mesh stl_parse_binary(FILE *fptr) {
+int stl_parse_binary(FILE *fptr, struct gjModel *model) {
     uint32_t triCount;
-    struct Mesh nullMesh = {0};
     if (fread(&triCount, sizeof(uint32_t), 1, fptr) != 1) {
         printf("Failed to read triangle count\n");
-        return nullMesh;
+        return -1;
     }
 
-    // triCount * 3 vertices * 8 floats per vertex (x,y,z,nx,ny,nz,u,v) * sizeof(float)
-    //
-    size_t dataSize = triCount * 3 * 8 * sizeof(float);
-    float *data = malloc(dataSize);
-    if (!data) {
-        printf("Failed to allocate memory ofr stl data\n");
-        return nullMesh;
+    // triCount * 3 vertices * 3 floats per vertex (x,y,z)|(nx,ny,nz) * sizeof(float)
+    size_t dataSize = triCount * 3 * 3 * sizeof(float);
+    float *positionData = malloc(dataSize);
+    float *normalData = malloc(dataSize);
+    if (!positionData || !normalData) {
+        printf("Out of memory!\n");
+        free(positionData);
+        free(normalData);
+        return -1;
     }
 
-    struct Mesh mesh = {
-        .vertices     = data,
-        .nVertices    = triCount * 3, // 3 = vertix per triangle
-        .hasNormals   = 1,
-        .hasTexcoords = 0
+    struct gjMesh mesh = {
+        .positions = positionData,
+        .normals = normalData,
+        .vertexCount = triCount * 3
     };
+
+    struct gjMesh *tmp = realloc(
+        model->meshes,
+        sizeof(struct gjMesh) * (model->meshCount + 1)
+    );
+
+    if (!tmp) {
+        printf("realloc failed\n");
+        return -1;
+    }
+    model->meshes = tmp;
+    model->meshes[model->meshCount] = mesh;
+    model->meshCount++;
 
     for (size_t i = 0; i < triCount; i++) {
         struct triangle tri;
         if (fread(&tri, sizeof(struct triangle), 1, fptr) != 1) {
             printf("Failed to parse stl triangle\n");
-            free(data);
-            return nullMesh;
+            free(positionData);
+            free(normalData);
+            return -1;
         }
-        size_t base = i * 24; // 3 * 8
+        size_t base = i * 3; // 3 for xyz
         // v1
-        data[base + 0] = tri.v1[0];
-        data[base + 1] = tri.v1[1];
-        data[base + 2] = tri.v1[2];
-        data[base + 3] = tri.normal[0];
-        data[base + 4] = tri.normal[1];
-        data[base + 5] = tri.normal[2];
-        data[base + 6] = 0; // u
-        data[base + 7] = 0; // v
+        positionData[base + 0] = tri.v1[0];
+        positionData[base + 1] = tri.v1[1];
+        positionData[base + 2] = tri.v1[2];
+        normalData[base + 0] = tri.normal[0];
+        normalData[base + 1] = tri.normal[1];
+        normalData[base + 2] = tri.normal[2];
 
         // v2
-        data[base + 8] = tri.v2[0];
-        data[base + 9] = tri.v2[1];
-        data[base + 10] = tri.v2[2];
-        data[base + 11] = tri.normal[0];
-        data[base + 12] = tri.normal[1];
-        data[base + 13] = tri.normal[2];
-        data[base + 14] = 0; // u
-        data[base + 15] = 0; // v
+        positionData[base + 3] = tri.v2[0];
+        positionData[base + 4] = tri.v2[1];
+        positionData[base + 5] = tri.v2[2];
+        normalData[base + 3] = tri.normal[0];
+        normalData[base + 4] = tri.normal[1];
+        normalData[base + 5] = tri.normal[2];
 
         // v3
-        data[base + 16] = tri.v3[0];
-        data[base + 17] = tri.v3[1];
-        data[base + 18] = tri.v3[2];
-        data[base + 19] = tri.normal[0];
-        data[base + 20] = tri.normal[1];
-        data[base + 21] = tri.normal[2];
-        data[base + 22] = 0; // u
-        data[base + 23] = 0; // v
+        positionData[base + 6] = tri.v3[0];
+        positionData[base + 7] = tri.v3[1];
+        positionData[base + 8] = tri.v3[2];
+        normalData[base + 6] = tri.normal[0];
+        normalData[base + 7] = tri.normal[1];
+        normalData[base + 8] = tri.normal[2];
     }
-    return mesh;
+    return 0;
 }
 
 int count_facets(FILE *fptr) {
@@ -95,23 +103,29 @@ int count_facets(FILE *fptr) {
     return count;
 }
 
-struct Mesh stl_parse_ascii(FILE *fptr) {
+int stl_parse_ascii(FILE *fptr, struct gjModel *model) {
     int triCount = count_facets(fptr);
 
-    size_t dataSize = triCount * 3 * 8 * sizeof(float);
-    float *data = malloc(dataSize);
-    if (!data) {
-        printf("Failed to allocate memory ofr stl data\n");
-        struct Mesh nullMesh = {0};
-        return nullMesh;
+    size_t dataSize = triCount * 3 * 3 * sizeof(float);
+    float *positionData = malloc(dataSize);
+    float *normalData = malloc(dataSize);
+    if (!positionData || !normalData) {
+        printf("Out of memory!\n");
+        free(positionData);
+        free(normalData);
+        return -1;
     }
 
-    struct Mesh mesh = {
-        .vertices     = data,
-        .nVertices    = triCount * 3, // 3 = vertix per triangle
-        .hasNormals   = 1,
-        .hasTexcoords = 0
+    struct gjMesh mesh = {
+        .positions = positionData,
+        .normals = normalData,
+        .vertexCount = triCount * 3
     };
+
+    if (!model->meshes && model->meshCount ==0)
+        model->meshes = malloc(sizeof(struct gjMesh));
+    model->meshes[model->meshCount] = mesh;
+    model->meshCount++;
 
     char line[256];
     float x, y, z;
@@ -145,42 +159,36 @@ struct Mesh stl_parse_ascii(FILE *fptr) {
             }
             vCount += 1;
         } else if (strstr(line, "endloop")) {
-            size_t base = currentTriCount * 24; // 3 * 8
+            size_t base = currentTriCount * 3; // 3 for xyz
             // v1
-            data[base + 0] = tri.v1[0];
-            data[base + 1] = tri.v1[1];
-            data[base + 2] = tri.v1[2];
-            data[base + 3] = tri.normal[0];
-            data[base + 4] = tri.normal[1];
-            data[base + 5] = tri.normal[2];
-            data[base + 6] = 0; // u
-            data[base + 7] = 0; // v
+            positionData[base + 0] = tri.v1[0];
+            positionData[base + 1] = tri.v1[1];
+            positionData[base + 2] = tri.v1[2];
+            normalData[base + 0] = tri.normal[0];
+            normalData[base + 1] = tri.normal[1];
+            normalData[base + 2] = tri.normal[2];
 
             // v2
-            data[base + 8] = tri.v2[0];
-            data[base + 9] = tri.v2[1];
-            data[base + 10] = tri.v2[2];
-            data[base + 11] = tri.normal[0];
-            data[base + 12] = tri.normal[1];
-            data[base + 13] = tri.normal[2];
-            data[base + 14] = 0; // u
-            data[base + 15] = 0; // v
+            positionData[base + 3] = tri.v2[0];
+            positionData[base + 4] = tri.v2[1];
+            positionData[base + 5] = tri.v2[2];
+            normalData[base + 3] = tri.normal[0];
+            normalData[base + 4] = tri.normal[1];
+            normalData[base + 5] = tri.normal[2];
 
             // v3
-            data[base + 16] = tri.v3[0];
-            data[base + 17] = tri.v3[1];
-            data[base + 18] = tri.v3[2];
-            data[base + 19] = tri.normal[0];
-            data[base + 20] = tri.normal[1];
-            data[base + 21] = tri.normal[2];
-            data[base + 22] = 0; // u
-            data[base + 23] = 0; // v
+            positionData[base + 6] = tri.v3[0];
+            positionData[base + 7] = tri.v3[1];
+            positionData[base + 8] = tri.v3[2];
+            normalData[base + 6] = tri.normal[0];
+            normalData[base + 7] = tri.normal[1];
+            normalData[base + 8] = tri.normal[2];
 
             currentTriCount++;
             vCount = 0;
         }
     }
-    return mesh;
+    return 0;
 }
 
 int stl_parse_header(FILE *fptr) {
@@ -205,24 +213,30 @@ int stl_parse_header(FILE *fptr) {
     return -1;
 }
 
-struct Mesh stl_open(const char *filename) {
+int stl_open(const char *filename, struct gjModel *model) {
     FILE *fptr;
 
-    struct Mesh nullMesh = {0};
     if (!(fptr = fopen(filename, "rb"))) {
         printf("Failed to stl_open file %s\n", filename);
         // gj_set_error("Failed to stl_open file %s\n", filename);
-        return nullMesh;
+        return -1;
     }
 
     int res = stl_parse_header(fptr);
     if (res == -1) {
         fclose(fptr);
-        return nullMesh;
+        return -1;
     } else if (res == 0) { // ASCII
-        return stl_parse_ascii(fptr);
+        if (stl_parse_ascii(fptr, model)) {
+            fclose(fptr);
+            return -1;
+        }
     } else if (res == 1) { // binary
-        return stl_parse_binary(fptr);
+        if (stl_parse_binary(fptr, model)) {
+            fclose(fptr);
+            return -1;
+        }
     }
-    return nullMesh;
+    fclose(fptr);
+    return 0;
 }

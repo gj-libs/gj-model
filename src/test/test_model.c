@@ -1,24 +1,37 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "gj_model/gj_model.h"
 #include "formats/stl.h"
 #include "formats/obj.h"
 #include "formats/mtl.h"
 
-void stl_test() {
-    const char *filename = "assets/ascii.stl";
-    struct Mesh mesh = stl_open(filename);
-    printf("count: %d\n", mesh.nVertices);
+void stl_test(const char *filename) {
+    printf("\nSTL test entry\n");
+    printf("file: %s\n", filename);
+
+    struct gjModel *model = malloc(sizeof(struct gjModel));
+    memset(model, 0, sizeof(struct gjModel));
+    stl_open(filename, model);
+    printf("Number of meshes: %d\n", model->meshCount);
+    for (int i = 0; i < model->meshCount; i++) {
+        printf("Number of vertices for mesh[%d]: %d\n", i, model->meshes[i].vertexCount);
+    }
+    printf("Number of materials: %d\n", model->materialCount);
+    gj_model_free(model);
+    printf("STL test exit\n");
 }
 
 void obj_test() {
+    printf("OBJ test entry\n");
     const char *objFName = "assets/objTest/2nrtbod1out.obj";
-    struct Mesh mesh = obj_open(objFName);
-    printf("count: %d\n", mesh.nVertices);
+    struct gjModel model;
+    obj_open(objFName, &model);
+    // printf("count: %d\n", mesh.nVertices);
 
-    printf("opening mtl\n");
     const char *mtlFName = "assets/objTest/2nrtbod1out.mtl";
     int materialCount = 0;
-    struct mtlData *materials;
+    struct gjMaterial *materials;
     materials = mtl_open(mtlFName, &materialCount);
     for (int i = 0; i < materialCount; i++) {
         printf("newmtl %s\n", materials[i].name);
@@ -54,9 +67,14 @@ void obj_test() {
         printf("decal %s\n", materials[i].stencilMap);
         printf("\n");
     }
+    model.materials = materials;
+    model.materialCount = materialCount;
+    printf("OBJ test exit\n");
 }
 
 int main() {
-    obj_test();
+    stl_test("assets/binary.stl");
+    stl_test("assets/ascii.stl");
+    // obj_test();
     return 0;
 }

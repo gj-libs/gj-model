@@ -146,13 +146,12 @@ void count(FILE *fptr, int *vCount, int *vtCount, int *vnCount, int *fCount) {
     rewind(fptr);
 }
 
-struct Mesh obj_open(const char *filename) {
+int obj_open(const char *filename, struct gjModel *model) {
     FILE *fptr;
 
     if (!(fptr = fopen(filename, "rb"))) {
         printf("Failed to open file %s\n", filename);
-        struct Mesh mesh = {0};
-        return mesh;
+        return -1;
     }
 
     struct objData objData = {0};
@@ -173,11 +172,11 @@ struct Mesh obj_open(const char *filename) {
     int stride = 8; // floats per vertex
     float *data = malloc(sizeof(float) * objData.faceCount * stride);
 
-    struct Mesh mesh = {
-        .vertices     = data,
-        .nVertices    = objData.faceCount,
-        .hasNormals   = hasNormals,
-        .hasTexcoords = hasTexcoords
+    struct gjMesh mesh = {
+    //     .vertices     = data,
+    //     .nVertices    = objData.faceCount,
+    //     .hasNormals   = hasNormals,
+    //     .hasTexcoords = hasTexcoords
     };
 
     int dataOffset = 0;
@@ -201,5 +200,5 @@ struct Mesh obj_open(const char *filename) {
 
         dataOffset += stride;
     }
-    return mesh;
+    return 0;
 }
