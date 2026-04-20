@@ -7,7 +7,7 @@
 
 struct gjModel *gj_model_load(const char *filename) {
     char *ext = strrchr(filename, '.');
-    struct gjModel *model = malloc(sizeof(struct gjModel));
+    struct gjModel *model = malloc_model();
     if (!model) {
         printf("Out of memory!\n");
         return NULL;
@@ -31,6 +31,42 @@ struct gjModel *gj_model_load(const char *filename) {
     return model;
 }
 
+struct gjModel *malloc_model() {
+    struct gjModel *model = malloc(sizeof(struct gjModel));
+    model->root = (struct gjNode){0};
+    model->meshes = NULL;
+    model->meshCount = 0;
+    model->materials = NULL;
+    model->materialCount = 0;
+    return model;
+}
+
+struct gjNode *malloc_node() {
+    struct gjNode *node = malloc(sizeof(struct gjNode));
+    node->meshIndices = NULL;
+    node->meshCount = 0;
+    node->children = NULL;
+    node->childCount = 0;
+    return node;
+}
+
+struct gjMesh *malloc_mesh() {
+    struct gjMesh *mesh = malloc(sizeof(struct gjMesh));
+    mesh->positions = NULL;
+    mesh->normals = NULL;
+    mesh->texcoords = NULL;
+    mesh->indices = NULL;
+    mesh->vertexCount = 0;
+    mesh->indexCount = 0;
+    mesh->materialIndex = -1;
+    return mesh;
+}
+
+struct gjMaterial *malloc_material() {
+    struct gjMaterial *material = calloc(0, sizeof(struct gjMaterial));
+    return material;
+}
+
 void free_node(struct gjNode *node) {
     if (!node) return;
     for (int i = 0; i < node->childCount; i++) {
@@ -46,10 +82,14 @@ void gj_model_free(struct gjModel *model) {
     free_node(&model->root);
     if (model->meshCount > 0) {
         for (int i = 0; i < model->meshCount; i++) {
-            free(model->meshes[i].positions);
-            free(model->meshes[i].normals);
-            free(model->meshes[i].texcoords);
-            free(model->meshes[i].indices);
+            if (model->meshes[i].positions)
+                free(model->meshes[i].positions);
+            if (model->meshes[i].normals)
+                free(model->meshes[i].normals);
+            if (model->meshes[i].texcoords)
+                free(model->meshes[i].texcoords);
+            if (model->meshes[i].indices)
+                free(model->meshes[i].indices);
         }
         free(model->meshes);
     }

@@ -96,5 +96,6 @@ struct gjMaterial *mtl_open(const char *filename, int *materialCount) {
     while (fgets(line, sizeof(line), fptr)) {
         mtl_parse_line(line, &materials, materialCount);
     }
+    fclose(fptr);
     return materials;
 }

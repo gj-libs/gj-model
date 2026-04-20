@@ -65,6 +65,11 @@ struct gjModel {
     int materialCount;
 };
 
+struct gjModel *malloc_model();
+struct gjNode *malloc_node();
+struct gjMesh *malloc_mesh();
+struct gjMaterial *malloc_material();
+
 /*
  * Opens a 3D model file
  *

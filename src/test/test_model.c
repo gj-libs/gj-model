@@ -9,10 +9,7 @@
 void stl_test(const char *filename) {
     printf("\nSTL test entry\n");
     printf("file: %s\n", filename);
-
-    struct gjModel *model = malloc(sizeof(struct gjModel));
-    memset(model, 0, sizeof(struct gjModel));
-    stl_open(filename, model);
+    struct gjModel *model = gj_model_load(filename);
     printf("Number of meshes: %d\n", model->meshCount);
     for (int i = 0; i < model->meshCount; i++) {
         printf("Number of vertices for mesh[%d]: %d\n", i, model->meshes[i].vertexCount);
@@ -22,17 +19,13 @@ void stl_test(const char *filename) {
     printf("STL test exit\n");
 }
 
-void obj_test() {
-    printf("OBJ test entry\n");
-    const char *objFName = "assets/objTest/2nrtbod1out.obj";
-    struct gjModel model;
-    obj_open(objFName, &model);
-    // printf("count: %d\n", mesh.nVertices);
+void mtl_test(const char *filename) {
+    printf("\nMTL test entry\n");
+    printf("file: %s\n", filename);
 
-    const char *mtlFName = "assets/objTest/2nrtbod1out.mtl";
     int materialCount = 0;
     struct gjMaterial *materials;
-    materials = mtl_open(mtlFName, &materialCount);
+    materials = mtl_open(filename, &materialCount);
     for (int i = 0; i < materialCount; i++) {
         printf("newmtl %s\n", materials[i].name);
         printf("Ka %f %f %f\n",
@@ -67,14 +60,30 @@ void obj_test() {
         printf("decal %s\n", materials[i].stencilMap);
         printf("\n");
     }
-    model.materials = materials;
-    model.materialCount = materialCount;
+    free(materials);
+
+    printf("MTL test exit\n");
+}
+
+void obj_test(const char *filename) {
+    printf("\nOBJ test entry\n");
+    printf("file: %s\n", filename);
+
+    struct gjModel *model = gj_model_load(filename);
+    printf("Number of meshes: %d\n", model->meshCount);
+    for (int i = 0; i < model->meshCount; i++) {
+        printf("Number of vertices for mesh[%d]: %d\n", i, model->meshes[i].vertexCount);
+    }
+    printf("Number of materials: %d\n", model->materialCount);
+    gj_model_free(model);
+
     printf("OBJ test exit\n");
 }
 
 int main() {
     stl_test("assets/binary.stl");
     stl_test("assets/ascii.stl");
-    // obj_test();
+    obj_test("assets/cube/cube.obj");
+    mtl_test("assets/objTest/2nrtbod1out.mtl");
     return 0;
 }
