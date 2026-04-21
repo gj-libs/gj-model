@@ -230,6 +230,9 @@ static int parse_obj_file(FILE *fptr, const char *objPath, RawObjData *raw, Grou
             sscanf(line + 2, "%255s", name);
             add_group(groups, name);
         } else if (strncmp(line, "usemtl ", 7) == 0) {
+            if (groups->currentGroup < 0) {
+                add_group(groups, "default");
+            }
             // Use material
             char mtlName[256] = {0};
             sscanf(line, "usemtl %255s", mtlName);

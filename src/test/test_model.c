@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "gj_model/gj_model.h"
-#include "formats/stl.h"
-#include "formats/obj.h"
 #include "formats/mtl.h"
 
 void print_node(struct gjNode *node) {
