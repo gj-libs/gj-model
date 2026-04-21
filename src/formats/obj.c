@@ -327,7 +327,7 @@ static struct gjMesh* build_mesh(RawObjData *raw, ObjGroup *group) {
             if (mesh->texcoords && fv.vt > 0 && fv.vt <= raw->texCount) {
                 int ti = (fv.vt - 1) * 2;
                 mesh->texcoords[idx * 2 + 0] = raw->texcoords[ti + 0];
-                mesh->texcoords[idx * 2 + 1] = raw->texcoords[ti + 1];
+                mesh->texcoords[idx * 2 + 1] = 1.0f - raw->texcoords[ti + 1]; // Flipping v coords upside down
             }
 
             mesh->indices[idx] = idx;
