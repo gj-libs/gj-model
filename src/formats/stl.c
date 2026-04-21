@@ -41,6 +41,11 @@ int stl_parse_binary(FILE *fptr, struct gjModel *model) {
         .normals = normalData,
         .vertexCount = triCount * 3
     };
+    mesh.indexCount = mesh.vertexCount;
+    mesh.indices = malloc(sizeof(unsigned int) * mesh.indexCount);
+    for (int i = 0; i < mesh.indexCount; i++)
+        mesh.indices[i] = i;
+    mesh.materialIndex = -1;
 
     struct gjMesh *tmp = realloc(
         model->meshes,
@@ -54,6 +59,12 @@ int stl_parse_binary(FILE *fptr, struct gjModel *model) {
     model->meshes = tmp;
     model->meshes[model->meshCount] = mesh;
     model->meshCount++;
+    model->root.meshCount++;
+    model->root.meshIndices = realloc(
+        model->root.meshIndices,
+        sizeof(int) * model->root.meshCount
+    );
+    model->root.meshIndices[model->root.meshCount - 1] = model->meshCount - 1;
 
     for (size_t i = 0; i < triCount; i++) {
         struct triangle tri;
@@ -63,7 +74,7 @@ int stl_parse_binary(FILE *fptr, struct gjModel *model) {
             free(normalData);
             return -1;
         }
-        size_t base = i * 3; // 3 for xyz
+        size_t base = i * 9; // 3 for xyz
         // v1
         positionData[base + 0] = tri.v1[0];
         positionData[base + 1] = tri.v1[1];
@@ -121,11 +132,26 @@ int stl_parse_ascii(FILE *fptr, struct gjModel *model) {
         .normals = normalData,
         .vertexCount = triCount * 3
     };
+    mesh.indexCount = mesh.vertexCount;
+    mesh.indices = malloc(sizeof(unsigned int) * mesh.indexCount);
+    for (int i = 0; i < mesh.indexCount; i++)
+        mesh.indices[i] = i;
+    mesh.materialIndex = -1;
 
-    if (!model->meshes && model->meshCount ==0)
-        model->meshes = malloc(sizeof(struct gjMesh));
+    struct gjMesh *tmp = realloc(
+        model->meshes,
+        sizeof(struct gjMesh) * (model->meshCount + 1)
+    );
+    if (!tmp) return -1;
+    model->meshes = tmp;
     model->meshes[model->meshCount] = mesh;
     model->meshCount++;
+    model->root.meshCount++;
+    model->root.meshIndices = realloc(
+        model->root.meshIndices,
+        sizeof(int) * model->root.meshCount
+    );
+    model->root.meshIndices[model->root.meshCount - 1] = model->meshCount - 1;
 
     char line[256];
     float x, y, z;
@@ -159,7 +185,7 @@ int stl_parse_ascii(FILE *fptr, struct gjModel *model) {
             }
             vCount += 1;
         } else if (strstr(line, "endloop")) {
-            size_t base = currentTriCount * 3; // 3 for xyz
+            size_t base = currentTriCount * 9; // 3 for xyz
             // v1
             positionData[base + 0] = tri.v1[0];
             positionData[base + 1] = tri.v1[1];

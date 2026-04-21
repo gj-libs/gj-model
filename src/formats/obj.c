@@ -22,6 +22,7 @@ typedef struct {
     FaceVertex vertices[3];
 } Face;
 
+
 typedef struct {
     char name[256];
     Face *faces;
@@ -398,8 +399,10 @@ int obj_open(const char *filename, struct gjModel *model) {
     model->materialCount = materialCount;
 
     // Initialize root node with identity transform
-    model->root.transform[0] = 1; model->root.transform[5] = 1;
-    model->root.transform[10] = 1; model->root.transform[15] = 1;
+    model->root.transform[0] = 1;
+    model->root.transform[5] = 1;
+    model->root.transform[10] = 1;
+    model->root.transform[15] = 1;
 
     // Assign all meshes to root node
     model->root.meshIndices = malloc(validMeshCount * sizeof(int));

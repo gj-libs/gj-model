@@ -6,15 +6,42 @@
 #include "formats/obj.h"
 #include "formats/mtl.h"
 
+void print_node(struct gjNode *node) {
+    if (!node) return;
+    for (int i = 0; i < node->childCount; i++) {
+        print_node(&node->children[i]);
+    }
+    printf("Node: %d meshes, %d children\n", node->meshCount, node->childCount);
+    for (int i = 0; i < node->meshCount; i++) {
+        printf("  Mesh index: %d\n", node->meshIndices[i]);
+    }
+}
+
+void gj_model_print(struct gjModel *model) {
+    print_node(&model->root);
+    printf("Model: meshes: %d materials: %d\n", model->meshCount, model->materialCount);
+    if (model->meshCount > 0) {
+        for (int i = 0; i < model->meshCount; i++) {
+            printf("Mesh[%d]: %d vertices, %d indices, materialIndex: %d\n",
+                   i,
+                   model->meshes[i].vertexCount,
+                   model->meshes[i].indexCount,
+                   model->meshes[i].materialIndex);
+        }
+    }
+}
+
 void stl_test(const char *filename) {
     printf("\nSTL test entry\n");
     printf("file: %s\n", filename);
     struct gjModel *model = gj_model_load(filename);
-    printf("Number of meshes: %d\n", model->meshCount);
-    for (int i = 0; i < model->meshCount; i++) {
-        printf("Number of vertices for mesh[%d]: %d\n", i, model->meshes[i].vertexCount);
-    }
-    printf("Number of materials: %d\n", model->materialCount);
+    // printf("Number of meshes: %d\n", model->meshCount);
+    // for (int i = 0; i < model->meshCount; i++) {
+    //     printf("Number of vertices for mesh[%d]: %d\n", i, model->meshes[i].vertexCount);
+    // }
+    // printf("Number of materials: %d\n", model->materialCount);
+    gj_model_print(model);
+
     gj_model_free(model);
     printf("STL test exit\n");
 }
