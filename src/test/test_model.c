@@ -96,7 +96,9 @@ void obj_test(const char *filename) {
     struct gjModel *model = gj_model_load(filename);
     printf("Number of meshes: %d\n", model->meshCount);
     for (int i = 0; i < model->meshCount; i++) {
-        printf("Number of vertices for mesh[%d]: %d\n", i, model->meshes[i].vertexCount);
+        printf("Number of vertices for mesh[%d]: %d", i, model->meshes[i].vertexCount);
+        printf(", material index: %d", model->meshes[i].materialIndex);
+        printf(", meshName: %s\n", model->meshes[i].name);
     }
     printf("Number of materials: %d\n", model->materialCount);
     gj_model_free(model);
@@ -107,7 +109,7 @@ void obj_test(const char *filename) {
 int main() {
     stl_test("assets/binary.stl");
     stl_test("assets/ascii.stl");
-    obj_test("assets/cube/cube.obj");
+    obj_test("assets/objTest/2nrtbod1out.obj");
     mtl_test("assets/objTest/2nrtbod1out.mtl");
     return 0;
 }

@@ -12,6 +12,7 @@ extern "C" {
 #endif
 
 struct gjMesh {
+    char name[256];
     float *positions;
     float *normals;
     float *texcoords;
@@ -77,24 +78,16 @@ struct gjMaterial *malloc_material();
  *
  * @return A struct gjModel
  *
- * TODO: Update for new system
- *
- * Mesh.vertices has 24 floats per vertice
- * in the format (x,y,z,nx,ny,nz,u,v)
- *   x,y,z    are position coords
- *   nx,ny,nz are normals
- *   u,v      are texture coords
- *
- * The returned Mesh.vertices buffer must be freed using gj_model_free().
+ * The returned struct gjModel must be freed using gj_model_free().
  */
 struct gjModel *gj_model_load(const char *filename);
 
 /*
  * Frees the allocated image data
  *
- * @param data Pointer to the image data to be freed
+ * @param data Pointer to the model to be freed
  */
-void        gj_model_free(struct gjModel *model);
+void            gj_model_free(struct gjModel *model);
 
 #ifdef __cplusplus
 }

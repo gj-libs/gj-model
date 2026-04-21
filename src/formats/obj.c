@@ -22,7 +22,6 @@ typedef struct {
     FaceVertex vertices[3];
 } Face;
 
-
 typedef struct {
     char name[256];
     Face *faces;
@@ -104,7 +103,9 @@ static void add_group(GroupList *list, const char *name) {
     group->faceCapacity = 64;
     group->faces = malloc(group->faceCapacity * sizeof(Face));
     group->faceCount = 0;
-    group->materialIndex = -1;
+    if (list->groupCount > 0) {
+        group->materialIndex = list->groups[list->groupCount-1].materialIndex;
+    }
 
     list->currentGroup = list->groupCount;
     list->groupCount++;
@@ -250,6 +251,7 @@ static int parse_obj_file(FILE *fptr, const char *objPath, RawObjData *raw, Grou
             snprintf(mtlPath, sizeof(mtlPath), "%s%s", dirpath, mtlFile);
 
             // Free existing materials if any
+            // TODO: ???
             if (*materials) {
                 free(*materials);
             }
@@ -281,6 +283,7 @@ static struct gjMesh* build_mesh(RawObjData *raw, ObjGroup *group) {
         return NULL;
     }
 
+    strncpy(mesh->name, group->name, 25);
     mesh->positions = malloc(vertexCount * 3 * sizeof(float));
     mesh->normals = raw->normals ? malloc(vertexCount * 3 * sizeof(float)) : NULL;
     mesh->texcoords = raw->texcoords ? malloc(vertexCount * 2 * sizeof(float)) : NULL;
