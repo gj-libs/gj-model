@@ -43,6 +43,12 @@ void stl_test(const char *filename) {
     printf("STL test exit\n");
 }
 
+void print_map(const char *mapName, const char *mapPath) {
+    if (mapPath && mapPath[0] != '\0') {
+        printf("%s: %s\n", mapName, mapPath);
+    }
+}
+
 void mtl_test(const char *filename) {
     printf("\nMTL test entry\n");
     printf("file: %s\n", filename);
@@ -51,37 +57,46 @@ void mtl_test(const char *filename) {
     struct gjMaterial *materials;
     materials = mtl_open(filename, &materialCount);
     for (int i = 0; i < materialCount; i++) {
-        printf("newmtl %s\n", materials[i].name);
-        printf("Ka %f %f %f\n",
-               materials[i].ambient[0],
-               materials[i].ambient[1],
-               materials[i].ambient[2]);
-        printf("Kd %f %f %f\n",
-               materials[i].diffuse[0],
-               materials[i].diffuse[1],
-               materials[i].diffuse[2]);
-        printf("Ks %f %f %f\n",
-               materials[i].specular[0],
-               materials[i].specular[1],
-               materials[i].specular[2]);
-        printf("Ns %f\n", materials[i].specularW);
-        printf("d %f\n", materials[i].transparency);
-        printf("Tr %f\n", materials[i].transparency);
-        printf("Tf %f %f %f\n",
-               materials[i].transmissionFilter[0],
-               materials[i].transmissionFilter[1],
-               materials[i].transmissionFilter[2]);
-        printf("Ni %f\n", materials[i].opticalDensity);
-        printf("illum %d\n", materials[i].illumination);
-        printf("map_Ka %s\n", materials[i].ambientMap);
-        printf("map_Kd %s\n", materials[i].diffuseMap);
-        printf("map_Ka %s\n", materials[i].specularMap);
-        printf("map_Ns %s\n", materials[i].specularHighlightMap);
-        printf("map_d %s\n", materials[i].alphaMap);
-        printf("map_bump %s\n", materials[i].bumpMap);
-        printf("bump %s\n", materials[i].bumpMap);
-        printf("disp %s\n", materials[i].displacementMap);
-        printf("decal %s\n", materials[i].stencilMap);
+        // printf("newmtl %s\n", materials[i].name);
+        // printf("Ka %f %f %f\n",
+        //        materials[i].ambient[0],
+        //        materials[i].ambient[1],
+        //        materials[i].ambient[2]);
+        // printf("Kd %f %f %f\n",
+        //        materials[i].diffuse[0],
+        //        materials[i].diffuse[1],
+        //        materials[i].diffuse[2]);
+        // printf("Ks %f %f %f\n",
+        //        materials[i].specular[0],
+        //        materials[i].specular[1],
+        //        materials[i].specular[2]);
+        // printf("Ns %f\n", materials[i].specularW);
+        // printf("d %f\n", materials[i].transparency);
+        // printf("Tr %f\n", materials[i].transparency);
+        // printf("Tf %f %f %f\n",
+        //        materials[i].transmissionFilter[0],
+        //        materials[i].transmissionFilter[1],
+        //        materials[i].transmissionFilter[2]);
+        // printf("Ni %f\n", materials[i].opticalDensity);
+        // printf("illum %d\n", materials[i].illumination);
+        print_map("map_Ka", materials[i].ambientMap);
+        print_map("map_Kd", materials[i].diffuseMap);
+        print_map("map_Ks", materials[i].specularMap);
+        print_map("map_Ns", materials[i].specularHighlightMap);
+        print_map("map_d", materials[i].alphaMap);
+        print_map("map_bump", materials[i].bumpMap);
+        print_map("bump", materials[i].bumpMap);
+        print_map("disp", materials[i].displacementMap);
+        print_map("decal", materials[i].stencilMap);
+        // printf("map_Ka %s\n", materials[i].ambientMap);
+        // printf("map_Kd %s\n", materials[i].diffuseMap);
+        // printf("map_Ka %s\n", materials[i].specularMap);
+        // printf("map_Ns %s\n", materials[i].specularHighlightMap);
+        // printf("map_d %s\n", materials[i].alphaMap);
+        // printf("map_bump %s\n", materials[i].bumpMap);
+        // printf("bump %s\n", materials[i].bumpMap);
+        // printf("disp %s\n", materials[i].displacementMap);
+        // printf("decal %s\n", materials[i].stencilMap);
         printf("\n");
     }
     free(materials);
@@ -107,9 +122,13 @@ void obj_test(const char *filename) {
 }
 
 int main() {
-    stl_test("assets/binary.stl");
-    stl_test("assets/ascii.stl");
-    obj_test("assets/objTest/2nrtbod1out.obj");
-    mtl_test("assets/objTest/2nrtbod1out.mtl");
+    // stl_test("assets/binary.stl");
+    // stl_test("assets/ascii.stl");
+    // obj_test("assets/objTest/2nrtbod1out.obj");
+    // mtl_test("assets/objTest/2nrtbod1out.mtl");
+    obj_test("assets/car/car.obj");
+    mtl_test("assets/car/car.mtl");
+    // obj_test("assets/backpack/backpack.obj");
+    // mtl_test("assets/backpack/backpack.mtl");
     return 0;
 }

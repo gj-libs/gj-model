@@ -23,11 +23,18 @@ typedef struct {
 } Face;
 
 typedef struct {
-    char name[256];
     Face *faces;
     int faceCount;
     int faceCapacity;
     int materialIndex;
+} ObjSubmesh;
+
+typedef struct {
+    char name[256];
+    ObjSubmesh *submeshes;
+    int submeshCount;
+    int submeshCapacity;
+    int currentMesh;
 } ObjGroup;
 
 typedef struct {
@@ -84,6 +91,35 @@ static void init_group_list(GroupList *list) {
     list->currentGroup = -1;
 }
 
+static void add_submesh(ObjGroup *group) {
+    if (group->submeshCapacity == 0) {
+        group->submeshCapacity = 1;
+        group->submeshes = malloc(group->submeshCapacity * sizeof(ObjSubmesh));
+    }
+    if (group->submeshCount >= group->submeshCapacity) {
+        group->submeshCapacity *= 2;
+        ObjSubmesh *tmp = realloc(group->submeshes, group->submeshCapacity * sizeof(ObjSubmesh));
+        if (!tmp) {
+            fprintf(stderr, "Out of memory\n");
+            return;
+        }
+        group->submeshes = tmp;
+    }
+
+    ObjSubmesh *submesh = &group->submeshes[group->submeshCount];
+    memset(submesh, 0, sizeof(ObjSubmesh));
+    submesh->faceCapacity = 64;
+    submesh->faces = malloc(submesh->faceCapacity * sizeof(Face));
+    submesh->faceCount = 0;
+
+    if (group->submeshCount > 0) {
+        submesh->materialIndex = group->submeshes[group->submeshCount-1].materialIndex;
+    }
+
+    group->currentMesh = group->submeshCount;
+    group->submeshCount++;
+}
+
 // Add a new group
 static void add_group(GroupList *list, const char *name) {
     if (list->groupCount >= list->groupCapacity) {
@@ -100,12 +136,7 @@ static void add_group(GroupList *list, const char *name) {
     memset(group, 0, sizeof(ObjGroup));
     strncpy(group->name, name ? name : "default", 255);
     group->name[255] = '\0';
-    group->faceCapacity = 64;
-    group->faces = malloc(group->faceCapacity * sizeof(Face));
-    group->faceCount = 0;
-    if (list->groupCount > 0) {
-        group->materialIndex = list->groups[list->groupCount-1].materialIndex;
-    }
+    group->currentMesh = -1;
 
     list->currentGroup = list->groupCount;
     list->groupCount++;
@@ -118,18 +149,22 @@ static void add_face(GroupList *list, Face face) {
     }
 
     ObjGroup *group = &list->groups[list->currentGroup];
+    if (group->currentMesh < 0) {
+        add_submesh(group);
+    }
+    ObjSubmesh *submesh = &group->submeshes[group->currentMesh];
 
-    if (group->faceCount >= group->faceCapacity) {
-        group->faceCapacity *= 2;
-        Face *tmp = realloc(group->faces, group->faceCapacity * sizeof(Face));
+    if (submesh->faceCount >= submesh->faceCapacity) {
+        submesh->faceCapacity *= 2;
+        Face *tmp = realloc(submesh->faces, submesh->faceCapacity * sizeof(Face));
         if (!tmp) {
             fprintf(stderr, "Out of memory\n");
             return;
         }
-        group->faces = tmp;
+        submesh->faces = tmp;
     }
 
-    group->faces[group->faceCount++] = face;
+    submesh->faces[submesh->faceCount++] = face;
 }
 
 // Find material index by name
@@ -234,12 +269,18 @@ static int parse_obj_file(FILE *fptr, const char *objPath, RawObjData *raw, Grou
             if (groups->currentGroup < 0) {
                 add_group(groups, "default");
             }
+            ObjGroup *group = &groups->groups[groups->currentGroup];
+            // if (group->currentMesh < 0) {
+            add_submesh(group);
+            // }
+            ObjSubmesh *submesh = &group->submeshes[group->currentMesh];
+
             // Use material
             char mtlName[256] = {0};
             sscanf(line, "usemtl %255s", mtlName);
-            if (groups->currentGroup >= 0 && *materials) {
+            if (group->currentMesh >= 0 && *materials) {
                 int mtlIdx = find_material_index(*materials, *materialCount, mtlName);
-                groups->groups[groups->currentGroup].materialIndex = mtlIdx;
+                submesh->materialIndex = mtlIdx;
             }
         } else if (strncmp(line, "mtllib ", 7) == 0) {
             // Load material library
@@ -273,11 +314,11 @@ static int parse_obj_file(FILE *fptr, const char *objPath, RawObjData *raw, Grou
 }
 
 // Convert indexed face data to flat vertex arrays for a single group
-static struct gjMesh* build_mesh(RawObjData *raw, ObjGroup *group) {
+static struct gjMesh* build_mesh(RawObjData *raw, ObjGroup *group, ObjSubmesh *submesh) {
     struct gjMesh *mesh = calloc(1, sizeof(struct gjMesh));
     if (!mesh) return NULL;
 
-    int vertexCount = group->faceCount * 3;
+    int vertexCount = submesh->faceCount * 3;
     if (vertexCount == 0) {
         free(mesh);
         return NULL;
@@ -303,9 +344,9 @@ static struct gjMesh* build_mesh(RawObjData *raw, ObjGroup *group) {
     if (mesh->texcoords) memset(mesh->texcoords, 0, vertexCount * 2 * sizeof(float));
 
     int idx = 0;
-    for (int i = 0; i < group->faceCount; i++) {
+    for (int i = 0; i < submesh->faceCount; i++) {
         for (int j = 0; j < 3; j++) {
-            FaceVertex fv = group->faces[i].vertices[j];
+            FaceVertex fv = submesh->faces[i].vertices[j];
 
             // Position (OBJ indices are 1-based)
             if (fv.v > 0 && fv.v <= raw->posCount) {
@@ -337,7 +378,7 @@ static struct gjMesh* build_mesh(RawObjData *raw, ObjGroup *group) {
 
     mesh->vertexCount = vertexCount;
     mesh->indexCount = vertexCount;
-    mesh->materialIndex = group->materialIndex;
+    mesh->materialIndex = submesh->materialIndex;
 
     return mesh;
 }
@@ -364,13 +405,21 @@ int obj_open(const char *filename, struct gjModel *model) {
     fclose(fptr);
 
     // Build meshes from groups
-    struct gjMesh *meshes = malloc(groups.groupCount * sizeof(struct gjMesh));
+    int totalMeshes = 0;
+    for (int i = 0; i < groups.groupCount; i++)
+        totalMeshes += groups.groups[i].submeshCount;
+
+    struct gjMesh *meshes = malloc(totalMeshes * sizeof(struct gjMesh));
+
     if (!meshes) {
         free(raw.positions);
         free(raw.texcoords);
         free(raw.normals);
         for (int i = 0; i < groups.groupCount; i++) {
-            free(groups.groups[i].faces);
+            for (int j = 0; j < groups.groups[i].submeshCount; j++) {
+                free(groups.groups[i].submeshes[j].faces);
+            }
+            free(groups.groups[i].submeshes);
         }
         free(groups.groups);
         free(materials);
@@ -379,12 +428,19 @@ int obj_open(const char *filename, struct gjModel *model) {
 
     int validMeshCount = 0;
     for (int i = 0; i < groups.groupCount; i++) {
-        struct gjMesh *mesh = build_mesh(&raw, &groups.groups[i]);
-        if (mesh) {
-            meshes[validMeshCount++] = *mesh;
-            free(mesh);
+        ObjGroup *group = &groups.groups[i];
+
+        for (int j = 0; j < group->submeshCount; j++) {
+            ObjSubmesh *submesh = &group->submeshes[j];
+            struct gjMesh *mesh = build_mesh(&raw, group, submesh);
+
+            if (mesh) {
+                meshes[validMeshCount++] = *mesh;
+                free(mesh);
+            }
+            free(submesh->faces);
         }
-        free(groups.groups[i].faces);
+        free(group->submeshes);
     }
 
     // Clean up temporary data
