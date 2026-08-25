@@ -1,9 +1,6 @@
 # Compiler
 CC = gcc
 
-# Output library
-NAME = libgj_model.a
-
 # Flags
 CFLAGS = -Wall -Wextra -O2 -Iinclude -Isrc
 
@@ -13,6 +10,9 @@ BUILD_DIR = build
 TEST_DIR = src/test
 TEST_SRC = $(TEST_DIR)/test_model.c
 TEST_BIN = test_model
+
+# Output library
+NAME = $(BUILD_DIR)/libgj_model.a
 
 # Find all source files (internal only)
 SRCS = $(shell find $(SRC_DIR) -name "*.c")
@@ -28,6 +28,7 @@ test: $(NAME)
 
 # Build static library
 $(NAME): $(OBJS)
+	@mkdir -p $(dir $@)
 	ar rcs $@ $^
 
 # Compile objects
