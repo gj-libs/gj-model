@@ -8,8 +8,8 @@ CFLAGS = -Wall -Wextra -O2 -Iinclude -Isrc
 SRC_DIR = src
 BUILD_DIR = build
 TEST_DIR = src/test
-TEST_SRC = $(TEST_DIR)/test_model.c
-TEST_BIN = test_model
+TEST_SRC = $(TEST_DIR)/test.c
+TEST_BIN = test
 
 # Output library
 NAME = $(BUILD_DIR)/libgj_model.a
