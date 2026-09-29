@@ -4,6 +4,7 @@
 #include "gj_model/gj_model.h"
 #include "formats/stl.h"
 #include "formats/obj.h"
+#include "gj_json/gj_json.h"
 
 struct gjModel *gj_model_load(const char *filename) {
     char *ext = strrchr(filename, '.');
