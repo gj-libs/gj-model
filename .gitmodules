@@ -1,0 +1,3 @@
+[submodule "deps/gj-json"]
+	path = deps/gj-json
+	url = https://github.com/gj-libs/gj-json.git
