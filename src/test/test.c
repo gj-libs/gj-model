@@ -121,14 +121,23 @@ void obj_test(const char *filename) {
     printf("OBJ test exit\n");
 }
 
+void gltf_test(const char *filename) {
+    printf("\nGLTF test entry\n");
+    printf("file: %s\n", filename);
+
+    gj_model_load(filename);
+
+    printf("GLTF test exit\n");
+}
 int main() {
     // stl_test("assets/binary.stl");
     // stl_test("assets/ascii.stl");
     // obj_test("assets/objTest/2nrtbod1out.obj");
     // mtl_test("assets/objTest/2nrtbod1out.mtl");
-    obj_test("assets/car/car.obj");
-    mtl_test("assets/car/car.mtl");
+    // obj_test("assets/car/car.obj");
+    // mtl_test("assets/car/car.mtl");
     // obj_test("assets/backpack/backpack.obj");
     // mtl_test("assets/backpack/backpack.mtl");
+    gltf_test("assets/gltf/cube/Cube.gltf");
     return 0;
 }

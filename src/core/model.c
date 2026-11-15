@@ -4,7 +4,7 @@
 #include "gj_model/gj_model.h"
 #include "formats/stl.h"
 #include "formats/obj.h"
-#include "gj_json/gj_json.h"
+#include "formats/gltf.h"
 
 struct gjModel *gj_model_load(const char *filename) {
     char *ext = strrchr(filename, '.');
@@ -24,6 +24,10 @@ struct gjModel *gj_model_load(const char *filename) {
         }
     } else if (strcasecmp(ext, ".obj") == 0) {
         if (obj_open(filename, model)) {
+            return NULL;
+        }
+    } else if (strcasecmp(ext, ".gltf") == 0) {
+        if (gltf_open(filename, model)) {
             return NULL;
         }
     } else {
