@@ -21,46 +21,6 @@
         } \
     } while (0)
 
-#define PARSE_OBJECT_ARRAY(fptr, array, count, parse_func) \
-    do { \
-        int capacity = 4; \
-        array = malloc(capacity * sizeof(*(array))); \
-        count = 0; \
-        while (1) { \
-            skip_whitespaces(fptr); \
-            char c = fgetc(fptr); \
-            if (c != '{') { \
-                free(array); \
-                return -1; \
-            } \
-            if (count >= capacity) { \
-                capacity *= 2; \
-                void *new_array = realloc(array, capacity * sizeof(*(array))); \
-                if (!new_array) { \
-                    free(array); \
-                    return -1; \
-                } \
-                array = new_array; \
-            } \
-            if (parse_func(fptr, &array[count])) { \
-                free(array); \
-                return -1; \
-            } \
-            count++; \
-            skip_whitespaces(fptr); \
-            c = fgetc(fptr); \
-            if (c == ',') { \
-                continue; \
-            } else if (c == ']') { \
-                break; \
-            } else { \
-                free(array); \
-                return -1; \
-            } \
-        } \
-        return 0; \
-    } while (0)
-
 struct asset {
     char *version;
     char *generator;
@@ -102,6 +62,15 @@ struct accessor {
 struct accessors {
     size_t count;
     struct accessor *accessors;
+};
+
+struct image {
+    char *uri;
+};
+
+struct images {
+    size_t count;
+    struct images *images;
 };
 
 void skip_whitespaces(FILE *fptr) {
@@ -236,7 +205,7 @@ int parse_accessor(FILE *fptr, struct accessor *ac) {
             return -1;
 
         skip_whitespaces(fptr);
-        if (+getc(fptr) != ':')
+        if (getc(fptr) != ':')
             return -1;
 
         skip_whitespaces(fptr);
@@ -378,16 +347,78 @@ int parse_buffer(FILE *fptr, struct buffer *b) {
     }
     return 0;
 }
-int parse_accessors(FILE *fptr, struct accessors *acs) {
-    PARSE_OBJECT_ARRAY(fptr, acs->accessors, acs->count, parse_accessor);
+
+int parse_image(FILE *fptr, struct image *im) {
+    char *key = parse_key(fptr);
+    if (!key)
+        return -1;
+
+    skip_whitespaces(fptr);
+    if (fgetc(fptr) != ':')
+        return -1;
+
+    skip_whitespaces(fptr);
+    if (strcmp(key, "uri") == 0) 
+        PARSE_STRING(fptr, im->uri);
+    free(key);
+
+    skip_whitespaces(fptr);
+    char c = fgetc(fptr);
+    if (c == ',') 
+        // FIX: This can leak memory if the object contains same key multiple times
+        return parse_image(fptr, im);
+    else if (c == '}') 
+        return 0;
+    else 
+        return -1;
 }
 
-int parse_bufferViews(FILE *fptr, struct bufferViews *bvs) {
-    PARSE_OBJECT_ARRAY(fptr, bvs->bufferViews, bvs->count, parse_bufferView);
-}
-
-int parse_buffers(FILE *fptr, struct buffers *bs) {
-    PARSE_OBJECT_ARRAY(fptr, bs->buffers, bs->count, parse_buffer);
+int parse_object_array(
+        FILE *fptr,
+        void **array,
+        size_t *count,
+        int (*parse_func)(FILE *, void *)
+) {
+    size_t capacity = 4;
+    *array = malloc(capacity * sizeof(*(array)));
+    if (!*array) {
+        return -1;
+    }
+    *count = 0;
+    while (1) {
+        skip_whitespaces(fptr);
+        char c = fgetc(fptr);
+        if (c != '{') {
+            free(*array);
+            return -1;
+        }
+        if (*count >= capacity) {
+            capacity *= 2;
+            void *new_array =
+                realloc(*array, capacity * sizeof(*(array)));
+            if (!new_array) {
+                free(*array);
+                return -1;
+            }
+            *array = new_array;
+        }
+        if (parse_func(fptr, &array[*count])) {
+            free(*array);
+            return -1;
+        }
+        (*count)++;
+        skip_whitespaces(fptr);
+        c = fgetc(fptr);
+        if (c == ',') {
+            continue;
+        } else if (c == ']') {
+            break;
+        } else {
+            free(*array);
+            return -1;
+        }
+    }
+    return 0;
 }
 
 int parse_gltf_object(FILE *fptr) {
@@ -431,7 +462,8 @@ int parse_gltf_object(FILE *fptr) {
             if (c != '[')
                 return -1;
             struct accessors accessors;
-            if (parse_accessors(fptr, &accessors)) {
+            if (parse_object_array(fptr, (void *)&accessors.accessors,
+                        &accessors.count, (int (*)(FILE *, void *))parse_accessor)) {
                 free(key);
                 return -1;
             }
@@ -441,7 +473,8 @@ int parse_gltf_object(FILE *fptr) {
             if (c != '[')
                 return -1;
             struct bufferViews bufferViews;
-            if (parse_bufferViews(fptr, &bufferViews)) {
+            if (parse_object_array(fptr, (void *)&bufferViews.bufferViews,
+                        &bufferViews.count, (int (*)(FILE *, void *))parse_bufferView)) {
                 free(key);
                 return -1;
             }
@@ -451,11 +484,23 @@ int parse_gltf_object(FILE *fptr) {
             if (c != '[')
                 return -1;
             struct buffers buffers;
-            if (parse_buffers(fptr, &buffers)) {
+            if (parse_object_array(fptr, (void *)&buffers.buffers,
+                        &buffers.count, (int (*)(FILE *, void *))parse_buffer)) {
                 free(key);
                 return -1;
             }
             printf("Parsed %zu buffers\n", buffers.count);
+        } else if (strcmp(key, "images") == 0) {
+            c = fgetc(fptr);
+            if (c != '[')
+                return -1;
+            struct images images;
+            if (parse_object_array(fptr, (void *)&images.images,
+                        &images.count, (int (*)(FILE *, void *))parse_image)) {
+                free(key);
+                return -1;
+            }
+            printf("Parsed %zu images\n", images.count);
         }
 
         first = 0;
