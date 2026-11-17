@@ -21,6 +21,21 @@
         } \
     } while (0)
 
+#define FREE_ALL(...) \
+    do { \
+        void *ptrs[] = {__VA_ARGS__}; \
+        for (size_t i = 0; i < sizeof(ptrs) / sizeof(ptrs[0]); i++) \
+            free(ptrs[i]); \
+    } while (0)
+
+#define CONSUME(fptr, c, ...) \
+    do { \
+        if (fgetc(fptr) != (c)) { \
+            FREE_ALL(__VA_ARGS__); \
+            return -1; \
+        } \
+    } while (0)
+
 struct asset {
     char *version;
     char *generator;
@@ -70,7 +85,19 @@ struct image {
 
 struct images {
     size_t count;
-    struct images *images;
+    struct image *images;
+};
+
+struct material {
+    char *name;
+    char *pbrMetallicRoughness;
+    size_t baseColorTextureIndex;
+    size_t metallicRoughnessTextureIndex;
+};
+
+struct materials {
+    size_t count;
+    struct material *materials;
 };
 
 void skip_whitespaces(FILE *fptr) {
@@ -373,6 +400,99 @@ int parse_image(FILE *fptr, struct image *im) {
         return -1;
 }
 
+int parse_material(FILE *fptr, struct material *ma) {
+    while (1) {
+        skip_whitespaces(fptr);
+        char *key = parse_key(fptr);
+        if (!key)
+            return -1;
+
+        skip_whitespaces(fptr);
+        CONSUME(fptr, ':');
+
+        skip_whitespaces(fptr);
+        if (strcmp(key, "name") == 0) {
+            PARSE_STRING(fptr, ma->name);
+        } else if (strcmp(key, "pbrMetallicRoughness") == 0) {
+            CONSUME(fptr, '{', key);
+
+            while (1) {
+                skip_whitespaces(fptr);
+                char *key1 = parse_key(fptr);
+                if (!key1) {
+                    free(key);
+                    return -1;
+                }
+
+                if (strcmp(key1, "baseColorTexture") == 0) {
+                    skip_whitespaces(fptr);
+                    CONSUME(fptr, ':', key1, key);
+                    skip_whitespaces(fptr);
+                    CONSUME(fptr, '{', key1, key);
+                    skip_whitespaces(fptr);
+                    char *key2 = parse_key(fptr);
+                    if (!key2) {
+                        free(key1);
+                        free(key);
+                        return -1;
+                    }
+
+                    skip_whitespaces(fptr);
+                    CONSUME(fptr, ':', key2, key1, key);
+                    if (strcmp(key2, "index") == 0) {
+                        PARSE_SIZE_T(fptr, &ma->baseColorTextureIndex);
+                    }
+                } else if (strcmp(key1, "metallicRoughnessTexture") == 0) {
+                    skip_whitespaces(fptr);
+                    CONSUME(fptr, ':', key1, key);
+                    skip_whitespaces(fptr);
+                    CONSUME(fptr, '{', key1, key);
+                    skip_whitespaces(fptr);
+                    char *key2 = parse_key(fptr);
+                    if (!key2) {
+                        free(key1);
+                        free(key);
+                        return -1;
+                    }
+
+                    skip_whitespaces(fptr);
+                    CONSUME(fptr, ':', key2, key1, key);
+                    if (strcmp(key2, "index") == 0) {
+                        PARSE_SIZE_T(fptr, &ma->metallicRoughnessTextureIndex);
+                    }
+                }
+
+                skip_whitespaces(fptr);
+                char c = fgetc(fptr);
+                if (c == '}') {
+                    c = fgetc(fptr);
+                    if (c == ',')
+                        continue;
+                    else
+                        break;
+                } else {
+                    return -1;
+                }
+            }
+            skip_whitespaces(fptr);
+            char c = fgetc(fptr);
+            if (c != '}')
+                return -1;
+        }
+        free(key);
+
+        skip_whitespaces(fptr);
+        char c = fgetc(fptr);
+        if (c == ',') 
+            continue;
+        else if (c == '}') 
+            break;
+        else 
+            return -1;
+    }
+    return 0;
+}
+
 int parse_object_array(
         FILE *fptr,
         void **array,
@@ -501,6 +621,23 @@ int parse_gltf_object(FILE *fptr) {
                 return -1;
             }
             printf("Parsed %zu images\n", images.count);
+        } else if (strcmp(key, "materials") == 0) {
+            c = fgetc(fptr);
+            if (c != '[')
+                return -1;
+            struct materials materials;
+            if (parse_object_array(fptr, (void *)&materials.materials,
+                        &materials.count, (int (*)(FILE *, void *))parse_material)) {
+                free(key);
+                return -1;
+            }
+            printf("Parsed %zu materials\n", materials.count);
+            for (int i = 0; i < materials.count; i++) {
+                printf("Material %d: name=%s, baseColorTextureIndex=%zu, metallicRoughnessTextureIndex=%zu\n",
+                    i, materials.materials[i].name,
+                    materials.materials[i].baseColorTextureIndex,
+                    materials.materials[i].metallicRoughnessTextureIndex);
+            }
         }
 
         first = 0;
