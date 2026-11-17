@@ -497,10 +497,11 @@ int parse_object_array(
         FILE *fptr,
         void **array,
         size_t *count,
+        size_t elem_size,
         int (*parse_func)(FILE *, void *)
 ) {
     size_t capacity = 4;
-    *array = malloc(capacity * sizeof(*(array)));
+    *array = malloc(capacity * elem_size);
     if (!*array) {
         return -1;
     }
@@ -514,15 +515,14 @@ int parse_object_array(
         }
         if (*count >= capacity) {
             capacity *= 2;
-            void *new_array =
-                realloc(*array, capacity * sizeof(*(array)));
+            void *new_array = realloc(*array, capacity * elem_size);
             if (!new_array) {
                 free(*array);
                 return -1;
             }
             *array = new_array;
         }
-        if (parse_func(fptr, &array[*count])) {
+        if (parse_func(fptr, (char *)(*array) + (*count) * elem_size)) {
             free(*array);
             return -1;
         }
@@ -583,7 +583,8 @@ int parse_gltf_object(FILE *fptr) {
                 return -1;
             struct accessors accessors;
             if (parse_object_array(fptr, (void *)&accessors.accessors,
-                        &accessors.count, (int (*)(FILE *, void *))parse_accessor)) {
+                        &accessors.count, sizeof(struct accessor),
+                        (int (*)(FILE *, void *))parse_accessor)) {
                 free(key);
                 return -1;
             }
@@ -594,7 +595,8 @@ int parse_gltf_object(FILE *fptr) {
                 return -1;
             struct bufferViews bufferViews;
             if (parse_object_array(fptr, (void *)&bufferViews.bufferViews,
-                        &bufferViews.count, (int (*)(FILE *, void *))parse_bufferView)) {
+                        &bufferViews.count, sizeof(struct bufferView),
+                        (int (*)(FILE *, void *))parse_bufferView)) {
                 free(key);
                 return -1;
             }
@@ -605,7 +607,8 @@ int parse_gltf_object(FILE *fptr) {
                 return -1;
             struct buffers buffers;
             if (parse_object_array(fptr, (void *)&buffers.buffers,
-                        &buffers.count, (int (*)(FILE *, void *))parse_buffer)) {
+                        &buffers.count, sizeof(struct buffer),
+                        (int (*)(FILE *, void *))parse_buffer)) {
                 free(key);
                 return -1;
             }
@@ -616,7 +619,8 @@ int parse_gltf_object(FILE *fptr) {
                 return -1;
             struct images images;
             if (parse_object_array(fptr, (void *)&images.images,
-                        &images.count, (int (*)(FILE *, void *))parse_image)) {
+                        &images.count, sizeof(struct image),
+                        (int (*)(FILE *, void *))parse_image)) {
                 free(key);
                 return -1;
             }
@@ -627,17 +631,12 @@ int parse_gltf_object(FILE *fptr) {
                 return -1;
             struct materials materials;
             if (parse_object_array(fptr, (void *)&materials.materials,
-                        &materials.count, (int (*)(FILE *, void *))parse_material)) {
+                        &materials.count, sizeof(struct material),
+                        (int (*)(FILE *, void *))parse_material)) {
                 free(key);
                 return -1;
             }
             printf("Parsed %zu materials\n", materials.count);
-            for (int i = 0; i < materials.count; i++) {
-                printf("Material %d: name=%s, baseColorTextureIndex=%zu, metallicRoughnessTextureIndex=%zu\n",
-                    i, materials.materials[i].name,
-                    materials.materials[i].baseColorTextureIndex,
-                    materials.materials[i].metallicRoughnessTextureIndex);
-            }
         }
 
         first = 0;
