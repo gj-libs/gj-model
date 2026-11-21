@@ -165,6 +165,22 @@ struct textures {
     struct texture *textures;
 };
 
+struct gltf {
+    char *file_base_path;
+    size_t scene;
+    struct asset asset;
+    struct buffers buffers;
+    struct bufferViews bufferViews;
+    struct accessors accessors;
+    struct images images;
+    struct materials materials;
+    struct meshes meshes;
+    struct nodes nodes;
+    struct samplers samplers;
+    struct scenes scenes;
+    struct textures textures;
+};
+
 void skip_whitespaces(FILE *fptr) {
     char c;
     while ((c = fgetc(fptr)) != EOF) {
@@ -684,14 +700,12 @@ int parse_meshes(FILE *fptr, struct mesh *m) {
             PARSE_STRING(fptr, m->name);
         } else if (strcmp(key, "primitives") == 0) {
             CONSUME(fptr, '[', key);
-            struct primitive primitives;
-            if (parse_object_array(fptr, (void *)&primitives,
+            if (parse_object_array(fptr, (void *)&m->primitives,
                         &m->primitiveCount, sizeof(struct primitive),
                         (int (*)(FILE *, void *))parse_primitive)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu primitives\n", m->primitiveCount);
         }
         free(key);
 
@@ -784,8 +798,6 @@ int parse_scenes(FILE *fptr, struct scene *s) {
                 else if (c == ']') break;
                 else return -1;
             }
-
-            printf("Parsed %zu scenes.nodes\n", s->node_count);
         }
         free(key);
 
@@ -830,10 +842,11 @@ int parse_textures(FILE *fptr, struct texture *s) {
     return 0;
 }
 
-int parse_gltf_object(FILE *fptr) {
+int parse_gltf_object(FILE *fptr, struct gltf *gltf) {
     skip_whitespaces(fptr);
     int first = 1;
     while (1) {
+        skip_whitespaces(fptr);
         char c = fgetc(fptr);
 
         if (c == EOF)
@@ -861,8 +874,7 @@ int parse_gltf_object(FILE *fptr) {
             c = fgetc(fptr);
             if (c != '{')
                 return -1;
-            struct asset asset = {0};
-            if (parse_asset(fptr, &asset)) {
+            if (parse_asset(fptr, &gltf->asset)) {
                 free(key);
                 return -1;
             }
@@ -870,128 +882,115 @@ int parse_gltf_object(FILE *fptr) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct accessors accessors;
-            if (parse_object_array(fptr, (void *)&accessors.accessors,
-                        &accessors.count, sizeof(struct accessor),
+            struct accessors *accessors = &gltf->accessors;
+            if (parse_object_array(fptr, (void *)&accessors->accessors,
+                        &accessors->count, sizeof(struct accessor),
                         (int (*)(FILE *, void *))parse_accessor)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu accessors\n", accessors.count);
         } else if (strcmp(key, "bufferViews") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct bufferViews bufferViews;
-            if (parse_object_array(fptr, (void *)&bufferViews.bufferViews,
-                        &bufferViews.count, sizeof(struct bufferView),
+            struct bufferViews *bufferViews = &gltf->bufferViews;
+            if (parse_object_array(fptr, (void *)&bufferViews->bufferViews,
+                        &bufferViews->count, sizeof(struct bufferView),
                         (int (*)(FILE *, void *))parse_bufferView)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu bufferViews\n", bufferViews.count);
         } else if (strcmp(key, "buffers") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct buffers buffers;
-            if (parse_object_array(fptr, (void *)&buffers.buffers,
-                        &buffers.count, sizeof(struct buffer),
+            struct buffers *buffers = &gltf->buffers;
+            if (parse_object_array(fptr, (void *)&buffers->buffers,
+                        &buffers->count, sizeof(struct buffer),
                         (int (*)(FILE *, void *))parse_buffer)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu buffers\n", buffers.count);
         } else if (strcmp(key, "images") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct images images;
-            if (parse_object_array(fptr, (void *)&images.images,
-                        &images.count, sizeof(struct image),
+            struct images *images = &gltf->images;
+            if (parse_object_array(fptr, (void *)&images->images,
+                        &images->count, sizeof(struct image),
                         (int (*)(FILE *, void *))parse_image)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu images\n", images.count);
         } else if (strcmp(key, "materials") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct materials materials;
-            if (parse_object_array(fptr, (void *)&materials.materials,
-                        &materials.count, sizeof(struct material),
+            struct materials *materials = &gltf->materials;
+            if (parse_object_array(fptr, (void *)&materials->materials,
+                        &materials->count, sizeof(struct material),
                         (int (*)(FILE *, void *))parse_material)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu materials\n", materials.count);
         } else if (strcmp(key, "meshes") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct meshes meshes;
-            if (parse_object_array(fptr, (void *)&meshes.meshes,
-                        &meshes.count, sizeof(struct mesh),
+            struct meshes *meshes = &gltf->meshes;
+            if (parse_object_array(fptr, (void *)&meshes->meshes,
+                        &meshes->count, sizeof(struct mesh),
                         (int (*)(FILE *, void *))parse_meshes)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu meshes\n", meshes.count);
         } else if (strcmp(key, "nodes") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct nodes nodes;
-            if (parse_object_array(fptr, (void *)&nodes.nodes,
-                        &nodes.count, sizeof(struct node),
+            struct nodes *nodes = &gltf->nodes;
+            if (parse_object_array(fptr, (void *)&nodes->nodes,
+                        &nodes->count, sizeof(struct node),
                         (int (*)(FILE *, void *))parse_nodes)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu nodes\n", nodes.count);
         } else if (strcmp(key, "samplers") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct samplers samplers;
-            if (parse_object_array(fptr, (void *)&samplers.samplers,
-                        &samplers.count, sizeof(struct sampler),
+            struct samplers *samplers = &gltf->samplers;
+            if (parse_object_array(fptr, (void *)&samplers->samplers,
+                        &samplers->count, sizeof(struct sampler),
                         (int (*)(FILE *, void *))parse_samplers)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu samplers\n", samplers.count);
         } else if (strcmp(key, "scene") == 0) {
-            size_t scene;
-            PARSE_SIZE_T(fptr, &scene);
-            printf("Parsed scene\n");
+            PARSE_SIZE_T(fptr, &gltf->scene);
         } else if (strcmp(key, "scenes") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct scenes scenes;
-            if (parse_object_array(fptr, (void *)&scenes.scenes,
-                        &scenes.count, sizeof(struct scene),
+            struct scenes *scenes = &gltf->scenes;
+            if (parse_object_array(fptr, (void *)&scenes->scenes,
+                        &scenes->count, sizeof(struct scene),
                         (int (*)(FILE *, void *))parse_scenes)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu scenes\n", scenes.count);
         } else if (strcmp(key, "textures") == 0) {
             c = fgetc(fptr);
             if (c != '[')
                 return -1;
-            struct textures textures;
-            if (parse_object_array(fptr, (void *)&textures.textures,
-                        &textures.count, sizeof(struct scene),
+            struct textures *textures = &gltf->textures;
+            if (parse_object_array(fptr, (void *)&textures->textures,
+                        &textures->count, sizeof(struct scene),
                         (int (*)(FILE *, void *))parse_textures)) {
                 free(key);
                 return -1;
             }
-            printf("Parsed %zu textures\n", textures.count);
         }
-
         first = 0;
         free(key);
     }
@@ -999,11 +998,138 @@ int parse_gltf_object(FILE *fptr) {
     return 0;
 }
 
-int parse_gltf_file(FILE *fptr) {
+int parse_gltf_file(FILE *fptr, struct gltf *gltf) {
     skip_whitespaces(fptr);
     if (fgetc(fptr) != '{')
         return -1;
-    return parse_gltf_object(fptr);
+    return parse_gltf_object(fptr, gltf);
+}
+
+void print_gltf(struct gltf *gltf) {
+    printf("glTF version: %s\n", gltf->asset.version);
+    printf("glTF generator: %s\n", gltf->asset.generator);
+    printf("glTF copyright: %s\n", gltf->asset.copyright);
+    printf("glTF buffers count: %zu\n", gltf->buffers.count);
+    printf("glTF bufferViews count: %zu\n", gltf->bufferViews.count);
+    printf("glTF accessors count: %zu\n", gltf->accessors.count);
+    printf("glTF images count: %zu\n", gltf->images.count);
+    printf("glTF materials count: %zu\n", gltf->materials.count);
+    printf("glTF meshes count: %zu\n", gltf->meshes.count);
+    printf("glTF nodes count: %zu\n", gltf->nodes.count);
+    printf("glTF samplers count: %zu\n", gltf->samplers.count);
+    printf("glTF scenes count: %zu\n", gltf->scenes.count);
+    printf("glTF textures count: %zu\n", gltf->textures.count);
+}
+
+int gltf_to_gjModel(struct gltf *gltf, struct gjModel *model) {
+    struct scenes *scenes = &gltf->scenes;
+    struct scene *scene = &scenes->scenes[gltf->scene];
+
+    FILE **fs = malloc(gltf->buffers.count * sizeof(FILE *));
+    for (size_t i = 0; i < gltf->buffers.count; i++) {
+        char *full_path = malloc(strlen(gltf->file_base_path) +
+                strlen(gltf->buffers.buffers[i].uri) + 1);
+        if (!full_path) {
+            fprintf(stderr, "Failed to allocate memory for full path\n");
+            return -1;
+        }
+
+        strcpy(full_path, gltf->file_base_path);
+        strcat(full_path, gltf->buffers.buffers[i].uri);
+
+        fs[i] = fopen(full_path, "rb");
+        if (!fs[i]) {
+            fprintf(stderr, "Failed to open buffer file: %s\n",
+                    gltf->buffers.buffers[i].uri);
+            return -1;
+        }
+        free(full_path);
+    }
+
+    for (size_t i = 0; i < scene->node_count; i++) {
+        size_t node_index = scene->scene_nodes[i];
+        struct node *node = &gltf->nodes.nodes[node_index];
+        size_t mesh_index = node->mesh;
+        struct mesh *mesh = &gltf->meshes.meshes[mesh_index];
+
+        float *positions = malloc(mesh->primitiveCount * sizeof(float) * 3);
+        float *normals = malloc(mesh->primitiveCount * sizeof(float) * 3);
+        float *tangents = malloc(mesh->primitiveCount * sizeof(float) * 3);
+        float *texcoords = malloc(mesh->primitiveCount * sizeof(float) * 2);
+
+        for (size_t j = 0; j < mesh->primitiveCount; j++) {
+            struct primitive *primitive = &mesh->primitives[j];
+
+            // POSITION
+            struct accessor *pos_accessor =
+                &gltf->accessors.accessors[primitive->attributes.POSITION];
+            struct bufferView *pos_bufferView =
+                &gltf->bufferViews.bufferViews[pos_accessor->bufferView];
+
+            fseek(fs[pos_bufferView->buffer],
+                    pos_bufferView->byteOffset + pos_accessor->byteOffset, SEEK_SET);
+            fread(positions, sizeof(float) * 3,
+                    pos_accessor->count, fs[pos_bufferView->buffer]);
+
+            // NORMAL
+            struct accessor *norm_accessor =
+                &gltf->accessors.accessors[primitive->attributes.POSITION];
+            struct bufferView *norm_bufferView =
+                &gltf->bufferViews.bufferViews[norm_accessor->bufferView];
+
+            fseek(fs[norm_bufferView->buffer],
+                    norm_bufferView->byteOffset + norm_accessor->byteOffset, SEEK_SET);
+            fread(normals, sizeof(float) * 3,
+                    norm_accessor->count, fs[norm_bufferView->buffer]);
+
+            // TANGENT
+            struct accessor *tan_accessor =
+                &gltf->accessors.accessors[primitive->attributes.TANGENT];
+            struct bufferView *tan_bufferView =
+                &gltf->bufferViews.bufferViews[tan_accessor->bufferView];
+            fseek(fs[tan_bufferView->buffer],
+                    tan_bufferView->byteOffset + tan_accessor->byteOffset, SEEK_SET);
+            fread(tangents, sizeof(float) * 3,
+                    tan_accessor->count, fs[tan_bufferView->buffer]);
+
+            // TEXCOORD_0
+            struct accessor *tex_accessor =
+                &gltf->accessors.accessors[primitive->attributes.TEXCOORD_0];
+            struct bufferView *tex_bufferView =
+                &gltf->bufferViews.bufferViews[tex_accessor->bufferView];
+            fseek(fs[tex_bufferView->buffer],
+                    tex_bufferView->byteOffset + tex_accessor->byteOffset, SEEK_SET);
+            fread(texcoords, sizeof(float) * 2,
+                    tex_accessor->count, fs[tex_bufferView->buffer]);
+        }
+    }
+
+    for (size_t i = 0; i < gltf->buffers.count; i++) {
+        fclose(fs[i]);
+    }
+    return -1;
+}
+
+int get_file_base_path(const char *filename, char **base_path) {
+    const char *last_slash = strrchr(filename, '/');
+    if (!last_slash) {
+        last_slash = strrchr(filename, '\\');
+    }
+    if (last_slash) {
+        size_t path_length = last_slash - filename + 1;
+        *base_path = malloc(path_length + 1);
+        if (!*base_path) {
+            return -1;
+        }
+        strncpy(*base_path, filename, path_length);
+        (*base_path)[path_length] = '\0';
+    } else {
+        *base_path = strdup("");
+        if (!*base_path) {
+            return -1;
+        }
+    }
+    return 0;
 }
 
 int gltf_open(const char *filename, struct gjModel *model) {
@@ -1015,11 +1141,20 @@ int gltf_open(const char *filename, struct gjModel *model) {
         return -1;
     }
 
-    if (parse_gltf_file(fptr)) {
+    struct gltf gltf = {0};
+    if (get_file_base_path(filename, &gltf.file_base_path)) {
+        fprintf(stderr, "Failed to get file base path: %s\n", filename);
+        fclose(fptr);
+        return -1;
+    }
+
+    if (parse_gltf_file(fptr, &gltf)) {
         fprintf(stderr, "Failed to parse glTF file: %s\n", filename);
         fclose(fptr);
         return -1;
     }
+    print_gltf(&gltf);
+    gltf_to_gjModel(&gltf, model);
 
     return 0;
 }
