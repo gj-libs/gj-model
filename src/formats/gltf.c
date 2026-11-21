@@ -145,24 +145,24 @@ struct samplers {
     struct sampler *samplers;
 };
 
-struct scenes_node {
-    size_t *nodes;
-    size_t nodeCount;
-};
-
-struct scenes_nodes {
-    size_t count;
-    struct scenes_node *scenes_nodes;
-};
-
 struct scene {
-    size_t count;
-    struct scenes_node *scenes_nodes;
+    size_t node_count;
+    size_t *scene_nodes;
 };
 
 struct scenes {
     size_t count;
     struct scene *scenes;
+};
+
+struct texture {
+    size_t sampler;
+    size_t source;
+};
+
+struct textures {
+    size_t count;
+    struct texture *textures;
 };
 
 void skip_whitespaces(FILE *fptr) {
@@ -747,56 +747,6 @@ int parse_samplers(FILE *fptr, struct sampler *s) {
     return 0;
 }
 
-int parse_scenes_nodes(FILE *fptr, struct scenes_nodes *s) {
-    skip_whitespaces(fptr);
-    char *key = parse_key(fptr);
-    if (!key)
-        return -1;
-
-    skip_whitespaces(fptr);
-    CONSUME(fptr, ':');
-
-    skip_whitespaces(fptr);
-    if (strcmp(key, "nodes") == 0) {
-        CONSUME(fptr, '[', key);
-        skip_whitespaces(fptr);
-        size_t count = 0;
-        size_t capacity = 4;
-        s->scenes_nodes = malloc(capacity * sizeof(struct scenes_node));
-        while (1) {
-            if (count >= capacity) {
-                capacity *= 2;
-                struct scenes_node *new_nodes = realloc(
-                        s->scenes_nodes, capacity * sizeof(struct scenes_node));
-                if (!new_nodes) {
-                    free(s->scenes_nodes);
-                    return -1;
-                }
-                s->scenes_nodes = new_nodes;
-            }
-            PARSE_SIZE_T(fptr, &s->scenes_nodes[s->count].nodes[count]);
-            count++;
-            char c = fgetc(fptr);
-            if (c == ',')
-                continue;
-            else if (c == ']')
-              break;
-            else
-              return -1;
-        }
-        CONSUME(fptr, '}', key);
-        printf("Parsed %zu scenes.nodes\n", count);
-    }
-    free(key);
-
-    skip_whitespaces(fptr);
-    char c = fgetc(fptr);
-    if (c == '}') 
-        return 0;
-    else 
-        return -1;
-}
-
 int parse_scenes(FILE *fptr, struct scene *s) {
     while (1) {
         skip_whitespaces(fptr);
@@ -810,14 +760,32 @@ int parse_scenes(FILE *fptr, struct scene *s) {
         skip_whitespaces(fptr);
         if (strcmp(key, "nodes") == 0) {
             CONSUME(fptr, '[', key);
-            struct scenes_nodes scenes_nodes;
-            if (parse_object_array(fptr, (void *)&scenes_nodes,
-                        &scenes_nodes.count, sizeof(struct scenes_nodes),
-                        (int (*)(FILE *, void *))parse_scenes_nodes)) {
-                free(key);
-                return -1;
+            size_t capacity = 4;
+            s->node_count = 0;
+            s->scene_nodes = malloc(capacity * sizeof(size_t));
+
+            while (1) {
+                if (s->node_count >= capacity) {
+                    capacity *= 2;
+                    size_t *new_arr = realloc(s->scene_nodes, capacity * sizeof(size_t));
+                    if (!new_arr) {
+                        free(s->scene_nodes);
+                        return -1;
+                    }
+                    s->scene_nodes = new_arr;
+                }
+                skip_whitespaces(fptr);
+                PARSE_SIZE_T(fptr, &s->scene_nodes[s->node_count]);
+                s->node_count++;
+
+                skip_whitespaces(fptr);
+                char c = fgetc(fptr);
+                if (c == ',') continue;
+                else if (c == ']') break;
+                else return -1;
             }
-            printf("Parsed %zu scenes.nodes\n", scenes_nodes.count);
+
+            printf("Parsed %zu scenes.nodes\n", s->node_count);
         }
         free(key);
 
@@ -832,6 +800,36 @@ int parse_scenes(FILE *fptr, struct scene *s) {
     }
     return 0;
 }
+
+int parse_textures(FILE *fptr, struct texture *s) {
+    while (1) {
+        char *key = parse_key(fptr);
+        if (!key)
+            return -1;
+
+        skip_whitespaces(fptr);
+        if (fgetc(fptr) != ':')
+            return -1;
+
+        skip_whitespaces(fptr);
+        if (strcmp(key, "sampler") == 0) 
+            PARSE_SIZE_T(fptr, &s->sampler);
+        else if (strcmp(key, "source") == 0) 
+            PARSE_SIZE_T(fptr, &s->source);
+        free(key);
+
+        skip_whitespaces(fptr);
+        char c = fgetc(fptr);
+        if (c == ',') 
+            continue;
+        else if (c == '}') 
+            break;
+        else 
+            return -1;
+    }
+    return 0;
+}
+
 int parse_gltf_object(FILE *fptr) {
     skip_whitespaces(fptr);
     int first = 1;
@@ -980,6 +978,18 @@ int parse_gltf_object(FILE *fptr) {
                 return -1;
             }
             printf("Parsed %zu scenes\n", scenes.count);
+        } else if (strcmp(key, "textures") == 0) {
+            c = fgetc(fptr);
+            if (c != '[')
+                return -1;
+            struct textures textures;
+            if (parse_object_array(fptr, (void *)&textures.textures,
+                        &textures.count, sizeof(struct scene),
+                        (int (*)(FILE *, void *))parse_textures)) {
+                free(key);
+                return -1;
+            }
+            printf("Parsed %zu textures\n", textures.count);
         }
 
         first = 0;
