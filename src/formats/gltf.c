@@ -1052,55 +1052,36 @@ int gltf_to_gjModel(struct gltf *gltf, struct gjModel *model) {
         size_t mesh_index = node->mesh;
         struct mesh *mesh = &gltf->meshes.meshes[mesh_index];
 
-        float *positions = malloc(mesh->primitiveCount * sizeof(float) * 3);
-        float *normals = malloc(mesh->primitiveCount * sizeof(float) * 3);
-        float *tangents = malloc(mesh->primitiveCount * sizeof(float) * 3);
-        float *texcoords = malloc(mesh->primitiveCount * sizeof(float) * 2);
+        float **positionss = malloc(mesh->primitiveCount * sizeof(float *));
+        float **normalss = malloc(mesh->primitiveCount * sizeof(float *));
+        float **tangentss = malloc(mesh->primitiveCount * sizeof(float *));
+        float **texcoordss = malloc(mesh->primitiveCount * sizeof(float *));
+
+        if (!positionss || !normalss || !tangentss || !texcoordss) {
+            fprintf(stderr, "Failed to allocate memory for mesh data\n");
+            return -1;
+        }
 
         for (size_t j = 0; j < mesh->primitiveCount; j++) {
             struct primitive *primitive = &mesh->primitives[j];
 
-            // POSITION
-            struct accessor *pos_accessor =
-                &gltf->accessors.accessors[primitive->attributes.POSITION];
-            struct bufferView *pos_bufferView =
-                &gltf->bufferViews.bufferViews[pos_accessor->bufferView];
+#define READ_BUFFER(attribute, array, element_count) \
+        do { \
+        struct accessor *accessor = \
+            &gltf->accessors.accessors[primitive->attributes.attribute]; \
+        struct bufferView *bufferView = \
+            &gltf->bufferViews.bufferViews[accessor->bufferView]; \
+        array[j] = malloc(accessor->count * sizeof(float) * element_count); \
+        fseek(fs[bufferView->buffer], \
+                bufferView->byteOffset + accessor->byteOffset, SEEK_SET); \
+        fread(array[j], sizeof(float) * element_count, \
+                accessor->count, fs[bufferView->buffer]); \
+        } while (0);
 
-            fseek(fs[pos_bufferView->buffer],
-                    pos_bufferView->byteOffset + pos_accessor->byteOffset, SEEK_SET);
-            fread(positions, sizeof(float) * 3,
-                    pos_accessor->count, fs[pos_bufferView->buffer]);
-
-            // NORMAL
-            struct accessor *norm_accessor =
-                &gltf->accessors.accessors[primitive->attributes.POSITION];
-            struct bufferView *norm_bufferView =
-                &gltf->bufferViews.bufferViews[norm_accessor->bufferView];
-
-            fseek(fs[norm_bufferView->buffer],
-                    norm_bufferView->byteOffset + norm_accessor->byteOffset, SEEK_SET);
-            fread(normals, sizeof(float) * 3,
-                    norm_accessor->count, fs[norm_bufferView->buffer]);
-
-            // TANGENT
-            struct accessor *tan_accessor =
-                &gltf->accessors.accessors[primitive->attributes.TANGENT];
-            struct bufferView *tan_bufferView =
-                &gltf->bufferViews.bufferViews[tan_accessor->bufferView];
-            fseek(fs[tan_bufferView->buffer],
-                    tan_bufferView->byteOffset + tan_accessor->byteOffset, SEEK_SET);
-            fread(tangents, sizeof(float) * 3,
-                    tan_accessor->count, fs[tan_bufferView->buffer]);
-
-            // TEXCOORD_0
-            struct accessor *tex_accessor =
-                &gltf->accessors.accessors[primitive->attributes.TEXCOORD_0];
-            struct bufferView *tex_bufferView =
-                &gltf->bufferViews.bufferViews[tex_accessor->bufferView];
-            fseek(fs[tex_bufferView->buffer],
-                    tex_bufferView->byteOffset + tex_accessor->byteOffset, SEEK_SET);
-            fread(texcoords, sizeof(float) * 2,
-                    tex_accessor->count, fs[tex_bufferView->buffer]);
+            READ_BUFFER(POSITION, positionss, 3);
+            READ_BUFFER(NORMAL, normalss, 3);
+            READ_BUFFER(TANGENT, tangentss, 3);
+            READ_BUFFER(TEXCOORD_0, texcoordss, 2);
         }
     }
 
