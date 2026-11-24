@@ -1,4 +1,5 @@
 #include "gj_model/gj_model.h"
+#include "common/common.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,35 +37,52 @@ int stl_parse_binary(FILE *fptr, struct gjModel *model) {
         return -1;
     }
 
-    struct gjMesh mesh = {
-        .positions = positionData,
-        .normals = normalData,
-        .vertexCount = triCount * 3
-    };
-    mesh.indexCount = mesh.vertexCount;
-    mesh.indices = malloc(sizeof(unsigned int) * mesh.indexCount);
-    for (int i = 0; i < mesh.indexCount; i++)
-        mesh.indices[i] = i;
-    mesh.materialIndex = -1;
+    model->meshCount = 1;
+    model->meshes = malloc_mesh(model->meshCount);
+    if (!model->meshes) return -1;
 
-    struct gjMesh *tmp = realloc(
-        model->meshes,
-        sizeof(struct gjMesh) * (model->meshCount + 1)
-    );
+    struct gjMesh *mesh = &model->meshes[0];
 
-    if (!tmp) {
-        printf("realloc failed\n");
-        return -1;
-    }
-    model->meshes = tmp;
-    model->meshes[model->meshCount] = mesh;
-    model->meshCount++;
-    model->root.meshCount++;
-    model->root.meshIndices = realloc(
-        model->root.meshIndices,
-        sizeof(int) * model->root.meshCount
-    );
-    model->root.meshIndices[model->root.meshCount - 1] = model->meshCount - 1;
+    mesh->positions = positionData;
+    mesh->normals = normalData;
+    mesh->vertexCount = triCount * 3;
+    mesh->indexCount = mesh->vertexCount;
+    mesh->indices = malloc(sizeof(unsigned int) * mesh->indexCount);
+    for (int i = 0; i < mesh->indexCount; i++)
+        mesh->indices[i] = i;
+    mesh->materialIndex = -1;
+
+    // STL only supports a single scene,
+    // so we create one scene and assign all meshes to it
+    model->scenes = malloc_scene(1);
+    model->sceneCount = 1;
+    model->sceneIndex = 0;
+    struct gjScene *scene = &model->scenes[0];
+
+    // Initialize root node with identity transform
+    // Allocate two nodes: root node and a child node for the meshes
+    model->nodeCount = 2;
+    model->nodes = malloc_node(model->nodeCount);
+    scene->nodeIndices = malloc(sizeof(int));
+    scene->nodeIndices[0] = 0;
+    scene->nodeCount = 1;
+    struct gjNode *rootNode = &model->nodes[scene->nodeIndices[0]];
+    mat4_identity(rootNode->transform);
+
+    // Root will have one child node that holds all meshes
+    rootNode->childCount = 1;
+    rootNode->childIndices = malloc(sizeof(int));
+    rootNode->childIndices[0] = 1;
+    rootNode->meshIndices = NULL;
+    rootNode->meshCount = 0;
+    struct gjNode *childNode = &model->nodes[rootNode->childIndices[0]];
+
+    // STL only has a single mesh
+    childNode->meshIndices = malloc(sizeof(int));
+    childNode->meshIndices[0] = 0;
+    childNode->meshCount = 1;
+    childNode->childIndices = NULL;
+    childNode->childCount = 0;
 
     for (size_t i = 0; i < triCount; i++) {
         struct triangle tri;
@@ -127,31 +145,52 @@ int stl_parse_ascii(FILE *fptr, struct gjModel *model) {
         return -1;
     }
 
-    struct gjMesh mesh = {
-        .positions = positionData,
-        .normals = normalData,
-        .vertexCount = triCount * 3
-    };
-    mesh.indexCount = mesh.vertexCount;
-    mesh.indices = malloc(sizeof(unsigned int) * mesh.indexCount);
-    for (int i = 0; i < mesh.indexCount; i++)
-        mesh.indices[i] = i;
-    mesh.materialIndex = -1;
+    model->meshCount = 1;
+    model->meshes = malloc(sizeof(struct gjMesh) * model->meshCount);
+    if (!model->meshes) return -1;
 
-    struct gjMesh *tmp = realloc(
-        model->meshes,
-        sizeof(struct gjMesh) * (model->meshCount + 1)
-    );
-    if (!tmp) return -1;
-    model->meshes = tmp;
-    model->meshes[model->meshCount] = mesh;
-    model->meshCount++;
-    model->root.meshCount++;
-    model->root.meshIndices = realloc(
-        model->root.meshIndices,
-        sizeof(int) * model->root.meshCount
-    );
-    model->root.meshIndices[model->root.meshCount - 1] = model->meshCount - 1;
+    struct gjMesh *mesh = &model->meshes[0];
+
+    mesh->positions = positionData;
+    mesh->normals = normalData;
+    mesh->vertexCount = triCount * 3;
+    mesh->indexCount = mesh->vertexCount;
+    mesh->indices = malloc(sizeof(unsigned int) * mesh->indexCount);
+    for (int i = 0; i < mesh->indexCount; i++)
+        mesh->indices[i] = i;
+    mesh->materialIndex = -1;
+
+    // STL only supports a single scene,
+    // so we create one scene and assign all meshes to it
+    model->scenes = malloc(sizeof(struct gjScene));
+    model->sceneCount = 1;
+    model->sceneIndex = 0;
+    struct gjScene *scene = &model->scenes[0];
+
+    // Initialize root node with identity transform
+    // Allocate two nodes: root node and a child node for the meshes
+    model->nodeCount = 2;
+    model->nodes = malloc_node(model->nodeCount);
+    scene->nodeIndices = malloc(sizeof(int));
+    scene->nodeIndices[0] = 0;
+    scene->nodeCount = 1;
+    struct gjNode *rootNode = &model->nodes[scene->nodeIndices[0]];
+    mat4_identity(rootNode->transform);
+
+    // Root will have one child node that holds all meshes
+    rootNode->childCount = 1;
+    rootNode->childIndices = malloc(sizeof(int));
+    rootNode->childIndices[0] = 1;
+    rootNode->meshIndices = NULL;
+    rootNode->meshCount = 0;
+    struct gjNode *childNode = &model->nodes[rootNode->childIndices[0]];
+
+    // STL only has a single mesh
+    childNode->meshIndices = malloc(sizeof(int));
+    childNode->meshIndices[0] = 0;
+    childNode->meshCount = 1;
+    childNode->childIndices = NULL;
+    childNode->childCount = 0;
 
     char line[256];
     float x, y, z;

@@ -9,6 +9,7 @@ add_library(gj-model STATIC)
 target_sources(gj-model
     PRIVATE
         src/core/model.c
+        src/common/common.c
         src/formats/mtl.c
         src/formats/obj.c
         src/formats/stl.c
