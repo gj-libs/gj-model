@@ -52,12 +52,24 @@ struct gjNode {
     int *meshIndices;
     int meshCount;
 
-    struct gjNode *children;
+    int *childIndices;
     int childCount;
 };
 
+struct gjScene {
+    char name[256];
+    int *nodeIndices;
+    int nodeCount;
+};
+
 struct gjModel {
-    struct gjNode root;
+    int sceneIndex;
+
+    struct gjScene *scenes;
+    int sceneCount;
+
+    struct gjNode *nodes;
+    int nodeCount;
 
     struct gjMesh *meshes;
     int meshCount;
@@ -66,10 +78,11 @@ struct gjModel {
     int materialCount;
 };
 
-struct gjModel *malloc_model();
-struct gjNode *malloc_node();
-struct gjMesh *malloc_mesh();
-struct gjMaterial *malloc_material();
+struct gjModel *malloc_model(int n);
+struct gjScene *malloc_scene(int n);
+struct gjNode *malloc_node(int n);
+struct gjMesh *malloc_mesh(int n);
+struct gjMaterial *malloc_material(int n);
 
 /*
  * Opens a 3D model file

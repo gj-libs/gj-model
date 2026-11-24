@@ -4,13 +4,12 @@ project(gj-model LANGUAGES C)
 
 option(GJ_MODEL_BUILD_TESTS "Build gj-model tests" OFF)
 
-add_subdirectory(deps/gj-json)
-
 add_library(gj-model STATIC)
 
 target_sources(gj-model
     PRIVATE
         src/core/model.c
+        src/common/common.c
         src/formats/mtl.c
         src/formats/obj.c
         src/formats/stl.c
@@ -28,11 +27,6 @@ target_include_directories(gj-model
         src
     PUBLIC
         include
-)
-
-target_link_libraries(gj-model
-    PRIVATE
-        gj-json
 )
 
 if(GJ_MODEL_BUILD_TESTS)

@@ -3,10 +3,11 @@
 #include "gj_model/gj_model.h"
 #include "formats/mtl.h"
 
-void print_node(struct gjNode *node) {
+void print_node(struct gjModel *model, int index) {
+    struct gjNode *node = &model->nodes[index];
     if (!node) return;
     for (int i = 0; i < node->childCount; i++) {
-        print_node(&node->children[i]);
+        print_node(model, node->childIndices[i]);
     }
     printf("Node: %d meshes, %d children\n", node->meshCount, node->childCount);
     for (int i = 0; i < node->meshCount; i++) {
@@ -15,7 +16,14 @@ void print_node(struct gjNode *node) {
 }
 
 void gj_model_print(struct gjModel *model) {
-    print_node(&model->root);
+    for (int i = 0; i < model->sceneCount; i++) {
+        struct gjScene *scene = &model->scenes[i];
+        printf("Scene[%d]: %d nodes\n", i, scene->nodeCount);
+        for (int j = 0; j < scene->nodeCount; j++) {
+            printf("  Node index: %d\n", scene->nodeIndices[j]);
+            print_node(model, scene->nodeIndices[j]);
+        }
+    }
     printf("Model: meshes: %d materials: %d\n", model->meshCount, model->materialCount);
     if (model->meshCount > 0) {
         for (int i = 0; i < model->meshCount; i++) {
@@ -122,13 +130,13 @@ void obj_test(const char *filename) {
 }
 
 int main() {
-    // stl_test("assets/binary.stl");
-    // stl_test("assets/ascii.stl");
-    // obj_test("assets/objTest/2nrtbod1out.obj");
-    // mtl_test("assets/objTest/2nrtbod1out.mtl");
+    stl_test("assets/binary.stl");
+    stl_test("assets/ascii.stl");
+    obj_test("assets/objTest/2nrtbod1out.obj");
+    mtl_test("assets/objTest/2nrtbod1out.mtl");
     obj_test("assets/car/car.obj");
     mtl_test("assets/car/car.mtl");
-    // obj_test("assets/backpack/backpack.obj");
-    // mtl_test("assets/backpack/backpack.mtl");
+    obj_test("assets/backpack/backpack.obj");
+    mtl_test("assets/backpack/backpack.mtl");
     return 0;
 }

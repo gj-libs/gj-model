@@ -3,6 +3,7 @@
 #include <string.h>
 #include "gj_model/gj_model.h"
 #include "formats/mtl.h"
+#include "common/common.h"
 
 // Temporary storage for raw OBJ data
 typedef struct {
@@ -409,7 +410,7 @@ int obj_open(const char *filename, struct gjModel *model) {
     for (int i = 0; i < groups.groupCount; i++)
         totalMeshes += groups.groups[i].submeshCount;
 
-    struct gjMesh *meshes = malloc(totalMeshes * sizeof(struct gjMesh));
+    struct gjMesh *meshes = malloc_mesh(totalMeshes);
 
     if (!meshes) {
         free(raw.positions);
@@ -455,25 +456,41 @@ int obj_open(const char *filename, struct gjModel *model) {
         return -1;
     }
 
+    // OBJ only supports a single scene,
+    // so we create one scene and assign all meshes to it
+    model->scenes = malloc_scene(1);
+    model->sceneCount = 1;
+    model->sceneIndex = 0;
+    struct gjScene *scene = &model->scenes[0];
+
     model->meshes = meshes;
     model->meshCount = validMeshCount;
     model->materials = materials;
     model->materialCount = materialCount;
 
     // Initialize root node with identity transform
-    model->root.transform[0] = 1;
-    model->root.transform[5] = 1;
-    model->root.transform[10] = 1;
-    model->root.transform[15] = 1;
+    // Allocate two nodes: root node and a child node for the meshes
+    model->nodeCount = 2;
+    model->nodes = malloc_node(model->nodeCount);
+    scene->nodeIndices = malloc(sizeof(int));
+    scene->nodeIndices[0] = 0;
+    scene->nodeCount = 1;
+    struct gjNode *rootNode = &model->nodes[scene->nodeIndices[0]];
+    mat4_identity(rootNode->transform);
+
+    // Root will have one child node that holds all meshes
+    rootNode->childCount = 1;
+    rootNode->childIndices = malloc(sizeof(int));
+    rootNode->childIndices[0] = 1;
+    struct gjNode *childNode = &model->nodes[rootNode->childIndices[0]];
 
     // Assign all meshes to root node
-    model->root.meshIndices = malloc(validMeshCount * sizeof(int));
-    for (int i = 0; i < validMeshCount; i++) {
-        model->root.meshIndices[i] = i;
-    }
-    model->root.meshCount = validMeshCount;
-    model->root.children = NULL;
-    model->root.childCount = 0;
+    childNode->meshIndices = malloc(validMeshCount * sizeof(int));
+    for (int i = 0; i < validMeshCount; i++)
+        childNode->meshIndices[i] = i;
+    childNode->meshCount = validMeshCount;
+    childNode->childIndices = NULL;
+    childNode->childCount = 0;
 
     return 0;
 }
