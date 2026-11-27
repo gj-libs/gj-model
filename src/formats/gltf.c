@@ -1,4 +1,5 @@
 #include "formats/gltf.h"
+#include "gj_model/gj_model.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,14 @@
     do { \
         field = parse_string(fptr); \
         if (!field) { \
+            free(key); \
+            return -1; \
+        } \
+    } while (0)
+
+#define PARSE_INT(fptr, field) \
+    do { \
+        if (parse_int(fptr, field)) { \
             free(key); \
             return -1; \
         } \
@@ -91,8 +100,8 @@ struct images {
 struct material {
     char *name;
     char *pbrMetallicRoughness;
-    size_t baseColorTextureIndex;
-    size_t metallicRoughnessTextureIndex;
+    int baseColorTextureIndex;
+    int metallicRoughnessTextureIndex;
 };
 
 struct materials {
@@ -109,9 +118,9 @@ struct attributes {
 
 struct primitive {
     struct attributes attributes;
-    size_t indices;
-    size_t material;
-    size_t mode;
+    int indices;
+    int material;
+    int mode;
 };
 
 struct mesh {
@@ -137,7 +146,7 @@ struct nodes {
 
 struct sampler {
     char *name;
-    size_t mesh;
+    int mesh;
 };
 
 struct samplers {
@@ -156,8 +165,8 @@ struct scenes {
 };
 
 struct texture {
-    size_t sampler;
-    size_t source;
+    int sampler;
+    int source;
 };
 
 struct textures {
@@ -167,7 +176,7 @@ struct textures {
 
 struct gltf {
     char *file_base_path;
-    size_t scene;
+    int scene;
     struct asset asset;
     struct buffers buffers;
     struct bufferViews bufferViews;
@@ -241,6 +250,23 @@ char *parse_string(FILE *fptr) {
         return NULL;
     }
     return str;
+}
+
+int parse_int(FILE *fptr, int *value) {
+    skip_whitespaces(fptr);
+    char c = fgetc(fptr);
+    if (!(c >= '0' && c <= '9'))
+        return -1;
+
+    int r = 0;
+    while (c >= '0' && c <= '9') {
+        r = r * 10 + (c - '0');
+        c = fgetc(fptr);
+    }
+
+    ungetc(c, fptr);
+    *value = r;
+    return 0;
 }
 
 int parse_size_t(FILE *fptr, size_t *value) {
@@ -569,7 +595,7 @@ int parse_material(FILE *fptr, struct material *ma) {
                     skip_whitespaces(fptr);
                     CONSUME(fptr, ':', key2, key1, key);
                     if (strcmp(key2, "index") == 0) {
-                        PARSE_SIZE_T(fptr, &ma->baseColorTextureIndex);
+                        PARSE_INT(fptr, &ma->baseColorTextureIndex);
                     }
                 } else if (strcmp(key1, "metallicRoughnessTexture") == 0) {
                     skip_whitespaces(fptr);
@@ -587,7 +613,7 @@ int parse_material(FILE *fptr, struct material *ma) {
                     skip_whitespaces(fptr);
                     CONSUME(fptr, ':', key2, key1, key);
                     if (strcmp(key2, "index") == 0) {
-                        PARSE_SIZE_T(fptr, &ma->metallicRoughnessTextureIndex);
+                        PARSE_INT(fptr, &ma->metallicRoughnessTextureIndex);
                     }
                 }
 
@@ -665,11 +691,11 @@ int parse_primitive(FILE *fptr, struct primitive *p) {
                     return -1; // TODO: free
             }
         } else if (strcmp(key, "indices") == 0) {
-            PARSE_SIZE_T(fptr, &p->indices);
+            PARSE_INT(fptr, &p->indices);
         } else if (strcmp(key, "material") == 0) {
-            PARSE_SIZE_T(fptr, &p->material);
+            PARSE_INT(fptr, &p->material);
         } else if (strcmp(key, "mode") == 0) {
-            PARSE_SIZE_T(fptr, &p->mode);
+            PARSE_INT(fptr, &p->mode);
         }
         free(key);
 
@@ -825,9 +851,9 @@ int parse_textures(FILE *fptr, struct texture *s) {
 
         skip_whitespaces(fptr);
         if (strcmp(key, "sampler") == 0) 
-            PARSE_SIZE_T(fptr, &s->sampler);
+            PARSE_INT(fptr, &s->sampler);
         else if (strcmp(key, "source") == 0) 
-            PARSE_SIZE_T(fptr, &s->source);
+            PARSE_INT(fptr, &s->source);
         free(key);
 
         skip_whitespaces(fptr);
@@ -967,7 +993,7 @@ int parse_gltf_object(FILE *fptr, struct gltf *gltf) {
                 return -1;
             }
         } else if (strcmp(key, "scene") == 0) {
-            PARSE_SIZE_T(fptr, &gltf->scene);
+            PARSE_INT(fptr, &gltf->scene);
         } else if (strcmp(key, "scenes") == 0) {
             c = fgetc(fptr);
             if (c != '[')
@@ -1023,7 +1049,9 @@ void print_gltf(struct gltf *gltf) {
 
 int gltf_to_gjModel(struct gltf *gltf, struct gjModel *model) {
     struct scenes *scenes = &gltf->scenes;
-    struct scene *scene = &scenes->scenes[gltf->scene];
+    model->scenes = malloc_scene(gltf->scenes.count);
+    model->sceneCount = gltf->scenes.count;
+    model->sceneIndex = gltf->scene;
 
     FILE **fs = malloc(gltf->buffers.count * sizeof(FILE *));
     for (size_t i = 0; i < gltf->buffers.count; i++) {
@@ -1046,42 +1074,63 @@ int gltf_to_gjModel(struct gltf *gltf, struct gjModel *model) {
         free(full_path);
     }
 
-    for (size_t i = 0; i < scene->node_count; i++) {
-        size_t node_index = scene->scene_nodes[i];
-        struct node *node = &gltf->nodes.nodes[node_index];
-        size_t mesh_index = node->mesh;
-        struct mesh *mesh = &gltf->meshes.meshes[mesh_index];
+    for (size_t i = 0; i < gltf->scenes.count; i++) {
+        struct scene *scene = &scenes->scenes[i];
+        struct gjScene *gjScene = &model->scenes[i];
+        gjScene->nodeIndices = malloc(sizeof(int));
+        gjScene->nodeIndices[0] = 0;
+        gjScene->nodeCount = 1;
+        int oldNodeCount = model->nodeCount;
+        model->nodeCount += scene->node_count;
+        model->nodes = realloc(model->nodes,
+                model->nodeCount * sizeof(struct gjNode));
+        for (size_t j = 0; j < scene->node_count; j++) {
+            size_t node_index = scene->scene_nodes[j];
+            struct node *node = &gltf->nodes.nodes[node_index];
+            size_t mesh_index = node->mesh;
+            struct mesh *mesh = &gltf->meshes.meshes[mesh_index];
 
-        float **positionss = malloc(mesh->primitiveCount * sizeof(float *));
-        float **normalss = malloc(mesh->primitiveCount * sizeof(float *));
-        float **tangentss = malloc(mesh->primitiveCount * sizeof(float *));
-        float **texcoordss = malloc(mesh->primitiveCount * sizeof(float *));
+            struct gjNode *gjNode = &model->nodes[oldNodeCount + j];
+            gjNode->meshIndices = malloc(mesh->primitiveCount * sizeof(int));
+            gjNode->meshCount = mesh->primitiveCount;
+            int oldMeshCount = model->meshCount;
+            model->meshCount += gjNode->meshCount;
+            if (!model->meshes) {
+                model->meshes = malloc(mesh->primitiveCount * sizeof(struct gjMesh));
+            } else {
+                model->meshes = realloc(&model->meshes,
+                        (model->meshCount + mesh->primitiveCount) * sizeof(struct gjMesh));
+            }
+            for (size_t k = 0; k < mesh->primitiveCount; k++) {
+                struct primitive *primitive = &mesh->primitives[k];
+                struct gjMesh *gjMesh = &model->meshes[oldMeshCount + k];
 
-        if (!positionss || !normalss || !tangentss || !texcoordss) {
-            fprintf(stderr, "Failed to allocate memory for mesh data\n");
-            return -1;
-        }
+                {
+                    struct accessor *accessor = &gltf->accessors.accessors[primitive->attributes.POSITION]; 
+                    struct bufferView *bufferView = &gltf->bufferViews.bufferViews[accessor->bufferView]; 
+                    gjMesh->positions = malloc(accessor->count * sizeof(float) * 3); 
+                    gjMesh->vertexCount = accessor->count;
+                    fseek(fs[bufferView->buffer], bufferView->byteOffset + accessor->byteOffset, SEEK_SET); 
+                    fread(gjMesh->positions, sizeof(float) * 3, accessor->count, fs[bufferView->buffer]); 
+                }
 
-        for (size_t j = 0; j < mesh->primitiveCount; j++) {
-            struct primitive *primitive = &mesh->primitives[j];
+                {
+                    struct accessor *accessor = &gltf->accessors.accessors[primitive->attributes.NORMAL]; 
+                    struct bufferView *bufferView = &gltf->bufferViews.bufferViews[accessor->bufferView]; 
+                    gjMesh->normals = malloc(accessor->count * sizeof(float) * 3); 
+                    fseek(fs[bufferView->buffer], bufferView->byteOffset + accessor->byteOffset, SEEK_SET); 
+                    fread(gjMesh->normals, sizeof(float) * 3, accessor->count, fs[bufferView->buffer]); 
+                }
 
-#define READ_BUFFER(attribute, array, element_count) \
-        do { \
-        struct accessor *accessor = \
-            &gltf->accessors.accessors[primitive->attributes.attribute]; \
-        struct bufferView *bufferView = \
-            &gltf->bufferViews.bufferViews[accessor->bufferView]; \
-        array[j] = malloc(accessor->count * sizeof(float) * element_count); \
-        fseek(fs[bufferView->buffer], \
-                bufferView->byteOffset + accessor->byteOffset, SEEK_SET); \
-        fread(array[j], sizeof(float) * element_count, \
-                accessor->count, fs[bufferView->buffer]); \
-        } while (0);
-
-            READ_BUFFER(POSITION, positionss, 3);
-            READ_BUFFER(NORMAL, normalss, 3);
-            READ_BUFFER(TANGENT, tangentss, 3);
-            READ_BUFFER(TEXCOORD_0, texcoordss, 2);
+                {
+                    struct accessor *accessor = &gltf->accessors.accessors[primitive->attributes.TEXCOORD_0]; 
+                    struct bufferView *bufferView = &gltf->bufferViews.bufferViews[accessor->bufferView]; 
+                    gjMesh->texcoords = malloc(accessor->count * sizeof(float) * 2); 
+                    gjMesh->vertexCount = accessor->count;
+                    fseek(fs[bufferView->buffer], bufferView->byteOffset + accessor->byteOffset, SEEK_SET); 
+                    fread(gjMesh->texcoords, sizeof(float) * 2, accessor->count, fs[bufferView->buffer]); 
+                }
+            }
         }
     }
 
@@ -1114,8 +1163,6 @@ int get_file_base_path(const char *filename, char **base_path) {
 }
 
 int gltf_open(const char *filename, struct gjModel *model) {
-    (void)model;
-
     FILE *fptr = fopen(filename, "r");
     if (!fptr) {
         fprintf(stderr, "Failed to open file: %s\n", filename);

@@ -137,6 +137,7 @@ void gltf_test(const char *filename) {
 
     printf("GLTF test exit\n");
 }
+
 int main() {
     // stl_test("assets/binary.stl");
     // stl_test("assets/ascii.stl");
